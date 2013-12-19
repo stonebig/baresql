@@ -74,7 +74,7 @@ class baresql(object):
         #we'll just convert them to Pandas Dataframe
         if isinstance(obj, pd.DataFrame):
             df = obj
-        elif isinstance(obj, (tuple, list)) :
+        elif isinstance(obj, (tuple, list, range)) :
             #tuple and list case
             if len(obj) == 0:
                 return pd.Dataframe()
@@ -87,7 +87,7 @@ class baresql(object):
                 df = pd.DataFrame(obj, columns=colnames)
             else:
                 #mono-column
-                df = pd.DataFrame(obj, columns = ["c0"])
+                df = pd.DataFrame(list(obj), columns = ["c0"])
         elif isinstance(obj, dict) :
             #dictionary case
             df = pd.DataFrame([(k,v) for k, v in obj.items()],
