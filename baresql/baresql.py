@@ -173,8 +173,8 @@ class baresql(object):
             pre_q=" ;DROP TABLE IF EXISTS [%s] ;" % table_sql
             cur = execute(pre_q, self.conn, params=env)
             self._write_table( table_sql, df, self.conn)
-        #multiple sql must be separated per ; and a new line
-        for q_single in q.split(';') :
+        #multiple sql must be separated per a ';'
+        for q_single in self._splitcsv(q,';') :
             cur = execute(q_single, self.conn, params=env)
         return cur
 
