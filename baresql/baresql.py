@@ -56,15 +56,34 @@ class baresql(object):
         self.tmp_tables = []
 
     def close(self):
-        "for memory scared"
+        "proper closing"
+        self.remove_tmp_tables
         self.conn.close
 
     def remove_tmp_tables(self):
-        "for memory scared"
+        "remove temporarly created tables"
         for table_sql in self.tmp_tables:
             pre_q=" ;DROP TABLE IF EXISTS [%s] ;" % table_sql
             cur = execute(pre_q, self.conn, params=env)
-        
+
+    def _splitcsv(self, csv_in, separator=",", string_limit="'"):
+        "split a csv string respecting string delimiters"
+        x = csv_in.split(string_limit)
+        if len(x) == 1 :
+            #Basic situation no string delimiter to worry about
+            return csv_in.split(separator)
+        else:
+            #Identify and replace active separators : the ones not in a string 
+            for i in range(0,len(x), 2):
+               x[i] = x[i].replace(separator, "<µ²é£>")
+            #Correct split is on this separator
+            return string_limit.join(x).split("<µ²é£>")
+
+    def _cleanup_sql(self, sql_in, separator=",", string_limit="'"):
+        "remove --comments from the sql"
+        q=["\n".join((x.split("\n")[1:])) for x in self._splitcsv(sql_in,"--")]
+        return q
+             
     def _ensure_data_frame(self, obj, name):
         """
         obj a python object to be converted to a DataFrame
@@ -142,6 +161,9 @@ class baresql(object):
              dict(globals(),**locals()) is the default python view of variables
         """
 
+        #initial cleanup (if we couldn't do it before)
+        self.remove_tmp_tables
+
         tables = self._extract_table_names(q, env)
         for table_ref in tables:
             table_sql=table_ref+"$$"
@@ -152,7 +174,7 @@ class baresql(object):
             cur = execute(pre_q, self.conn, params=env)
             self._write_table( table_sql, df, self.conn)
         #multiple sql must be separated per ; and a new line
-        for q_single in q.split(';\n') :
+        for q_single in q.split(';') :
             cur = execute(q_single, self.conn, params=env)
         return cur
 
@@ -187,7 +209,6 @@ if __name__ == '__main__':
         print (bsql.df(sql,locals())) 
 
         #more sophisticate
-        bsql=baresql("sqlite:///.baresql.db") # on disk
         bsqldf = lambda q: bsql.df(q,  dict(globals(),**locals()))
         
         sql='''drop table if exists winner;
