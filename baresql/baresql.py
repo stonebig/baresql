@@ -272,8 +272,14 @@ class baresql(object):
         return cur
 
     def rows(self, q, env):
-        "same as .cursor , but returns a list of rows"
+        "same as .cursor , but returns a list of rows (a list of tuples)"
         result = self.cursor( q, env).fetchall()
+        self.remove_tmp_tables()
+        return result
+
+    def column(self, q, env, column=0):
+        "same as rows , but returns a simple list of the Nth column values"
+        result = [x[column] for x in self.cursor( q, env).fetchall()]
         self.remove_tmp_tables()
         return result
 
