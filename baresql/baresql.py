@@ -76,8 +76,6 @@ class baresql(object):
         if origin in("all", "cte"):
             for table_sql in self.cte_tables:
                 pre_q = "DROP TABLE IF EXISTS [%s]" % table_sql
-                if self.do_log:
-                    self.log.append(pre_q)
                 cur = self._execute_sql(pre_q )
             self.cte_tables = []
 
@@ -276,7 +274,7 @@ class baresql(object):
     def rows(self, q, env):
         "same as .cursor , but returns a list of rows"
         result = self.cursor( q, env).fetchall()
-        self.remove_tmp_tables
+        self.remove_tmp_tables()
         return result
 
     def df(self, q, env):
@@ -289,7 +287,7 @@ class baresql(object):
         if cur.description is not None: 
             columns = [col_desc[0] for col_desc in cur.description]
             result = pd.DataFrame(rows, columns=columns)
-        self.remove_tmp_tables
+        self.remove_tmp_tables()
         return result
 
    
