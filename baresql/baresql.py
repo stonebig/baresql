@@ -45,7 +45,7 @@ class baresql(object):
         if self.engine == "sqlite" or self.engine == "mysql":
             self.dbname = "/".join(((connection+"").split("/")[3:]))
             if  self.dbname.strip() == "":
-               self.dbname=":memory:"
+               self.dbname = ":memory:"
         else:
             print (self.engine)
             raise Exception("Only sqlite and mysql are supported yet") 
@@ -67,11 +67,11 @@ class baresql(object):
     def remove_tmp_tables(self):
         "remove temporarly created tables"
         for table_sql in self.tmp_tables:
-            pre_q=" ;DROP TABLE IF EXISTS [%s] ;" % table_sql
+            pre_q = "DROP TABLE IF EXISTS [%s]" % table_sql
             cur = self._execute_sql(pre_q )
-        self.tmp_tables=[]    
+        self.tmp_tables = []    
 
-    def _splitcsv(self, csv_in, separator=",", string_limit="'"):
+    def _splitcsv(self, csv_in, separator = ",", string_limit = "'"):
         "split a csv string respecting string delimiters"
         x = csv_in.split(string_limit)
         if len(x) == 1 :
@@ -84,7 +84,7 @@ class baresql(object):
             #Correct split is on this separator
             return string_limit.join(x).split("<µ²é£>")
 
-    def _cleanup_sql(self, sql_in, separator=",", string_limit="'"):
+    def _cleanup_sql(self, sql_in, separator = ",", string_limit = "'"):
         "remove --comments from the sql"
         q=["\n".join((x.split("\n")[1:])) for x in self._splitcsv(sql_in,"--")]
         return q
@@ -146,7 +146,7 @@ class baresql(object):
             table_candidate = query.split(' ')[-1] 
             if table_candidate in env:
                tables.add(table_candidate)
-        self.tmp_tables=list(set(tables))
+        self.tmp_tables = list(set(tables))
         return self.tmp_tables
 
 
@@ -161,7 +161,7 @@ class baresql(object):
         write_frame(df, name = tablename, con = self.conn, flavor = 'sqlite')
 
 
-    def cur(self, q, env):
+    def cursor(self, q, env):
         """
         query python or sql datas, returns a cursor of last instruction
         q: sql instructions, with 
@@ -177,11 +177,11 @@ class baresql(object):
 
         tables = self._extract_table_names(q, env)
         for table_ref in tables:
-            table_sql=table_ref+"$$"
+            table_sql = table_ref+"$$"
             df = env[table_ref]
             df = self._ensure_data_frame(df, table_ref)
             #pre_destroy temporary table
-            pre_q="DROP TABLE IF EXISTS [%s]" % table_sql
+            pre_q = "DROP TABLE IF EXISTS [%s]" % table_sql
             cur = self._execute_sql (pre_q, env)
             self._write_table( table_sql, df, self.conn)
         #multiple sql must be separated per a ';'
@@ -191,14 +191,14 @@ class baresql(object):
         return cur
 
     def rows(self, q, env):
-        "same as .cur , but returns a list of rows"
-        result=self.cur( q, env).fetchall()
+        "same as .cursor , but returns a list of rows"
+        result = self.cursor( q, env).fetchall()
         self.remove_tmp_tables
         return result
 
     def df(self, q, env):
-        "same as .cur , but returns a pandas dataframe"
-        cur=self.cur( q, env)
+        "same as .cursor , but returns a pandas dataframe"
+        cur = self.cursor( q, env)
         result = None
         rows = cur.fetchall()
         if not isinstance(rows, list):
@@ -212,18 +212,18 @@ class baresql(object):
    
 if __name__ == '__main__':
         #create the object
-        bsql=baresql() # in memory
+        bsql = baresql() # in memory
 
         user = [(i, "user N°"+str(i)) for i in range(5)]
         limit = 2 
-        sql="select * from user$$ where c0 <= $limit"
+        sql = "select * from user$$ where c0 <= $limit"
 
         print (bsql.df(sql,locals())) 
 
         #more sophisticate
         bsqldf = lambda q: bsql.df(q,  dict(globals(),**locals()))
         
-        sql='''drop table if exists winner;
+        sql = '''drop table if exists winner;
                create table winner as 
                    select c0 No, c1 Name from user$$ where c0 > $limit ;
                select * from winner'''
