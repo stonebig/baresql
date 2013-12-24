@@ -105,6 +105,17 @@ class baresql(object):
             self.log.append(q_in)
         return execute(q_in ,self.conn, params=env)
 
+    def _execute_cte(self, q_in,  env):
+        "transform sql in case of a Common Table Expression on Sqlite"
+        q_raw=q_in.strip()
+        if  self.engine != "sqlite" or q_raw[:4].lower()!="with":  
+            #normal execute
+            return self._execute_sql(q_raw,env)
+        else:
+            #transform the cte
+            return self._execute_sql(q_raw,env)
+
+
     def _ensure_data_frame(self, obj, name):
         """
         obj a python object to be converted to a DataFrame
@@ -197,7 +208,9 @@ class baresql(object):
         #multiple sql must be separated per a ';'
         for q_single in self._splitcsv(q,';') :
             if q_single.strip() != "":
-                cur = self._execute_sql(q_single,  env)
+                #intermediate cleanup of previous cte tables, if there were
+                self.remove_tmp_tables("cte")
+                cur = self._execute_cte(q_single,  env)
         return cur
 
     def rows(self, q, env):
