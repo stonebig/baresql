@@ -54,6 +54,7 @@ class baresql(object):
         self.conn = sqlite.connect(self.dbname, 
                                    detect_types = sqlite.PARSE_DECLTYPES)
         self.tmp_tables = []
+        self.cte_tables = []
 
         #logging infrastructure
         self.do_log = keep_log
@@ -64,12 +65,21 @@ class baresql(object):
         self.remove_tmp_tables
         self.conn.close
 
-    def remove_tmp_tables(self):
+    def remove_tmp_tables(self, origin="all"):
         "remove temporarly created tables"
-        for table_sql in self.tmp_tables:
-            pre_q = "DROP TABLE IF EXISTS [%s]" % table_sql
-            cur = self._execute_sql(pre_q )
-        self.tmp_tables = []    
+        if origin in ("all", "tmp"):
+            for table_sql in self.tmp_tables:
+                pre_q = "DROP TABLE IF EXISTS [%s]" % table_sql
+                cur = self._execute_sql(pre_q )
+            self.tmp_tables = []
+            
+        if origin in("all", "cte"):
+            for table_sql in self.cte_tables:
+                pre_q = "DROP TABLE IF EXISTS [%s]" % table_sql
+                if self.do_log:
+                    self.log.append(pre_q)
+                cur = self._execute_sql(pre_q )
+            self.cte_tables = []
 
     def _splitcsv(self, csv_in, separator = ",", string_limit = "'"):
         "split a csv string respecting string delimiters"
