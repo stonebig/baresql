@@ -31,7 +31,7 @@ class baresql(object):
        Copyright 2011-2012, Lambda Foundry, Inc. and PyData Development Team)
     """
 
-    def __init__(self, connection="sqlite://"):
+    def __init__(self, connection="sqlite://", keep_log = False):
         """
         conn = connection string  
         example :
@@ -55,6 +55,10 @@ class baresql(object):
                                    detect_types = sqlite.PARSE_DECLTYPES)
         self.tmp_tables = []
 
+        #logging infrastructure
+        self.do_log = keep_log
+        self.log = []
+
     def close(self):
         "proper closing"
         self.remove_tmp_tables
@@ -64,7 +68,8 @@ class baresql(object):
         "remove temporarly created tables"
         for table_sql in self.tmp_tables:
             pre_q=" ;DROP TABLE IF EXISTS [%s] ;" % table_sql
-            cur = execute(pre_q, self.conn, params=env)
+            cur = self._execute_sql(pre_q )
+        self.tmp_tables=[]    
 
     def _splitcsv(self, csv_in, separator=",", string_limit="'"):
         "split a csv string respecting string delimiters"
@@ -84,6 +89,12 @@ class baresql(object):
         q=["\n".join((x.split("\n")[1:])) for x in self._splitcsv(sql_in,"--")]
         return q
              
+    def _execute_sql(self, q_in ,  env = None):
+        "execute sql but intercept log"
+        if self.do_log:
+            self.log.append(q_in)
+        return execute(q_in ,self.conn, params=env)
+
     def _ensure_data_frame(self, obj, name):
         """
         obj a python object to be converted to a DataFrame
@@ -170,12 +181,13 @@ class baresql(object):
             df = env[table_ref]
             df = self._ensure_data_frame(df, table_ref)
             #pre_destroy temporary table
-            pre_q=" ;DROP TABLE IF EXISTS [%s] ;" % table_sql
-            cur = execute(pre_q, self.conn, params=env)
+            pre_q="DROP TABLE IF EXISTS [%s]" % table_sql
+            cur = self._execute_sql (pre_q, env)
             self._write_table( table_sql, df, self.conn)
         #multiple sql must be separated per a ';'
         for q_single in self._splitcsv(q,';') :
-            cur = execute(q_single, self.conn, params=env)
+            if q_single.strip() != "":
+                cur = self._execute_sql(q_single,  env)
         return cur
 
     def rows(self, q, env):
