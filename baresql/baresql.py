@@ -106,14 +106,74 @@ class baresql(object):
         return execute(q_in ,self.conn, params=env)
 
     def _execute_cte(self, q_in,  env):
-        "transform sql in case of a Common Table Expression on Sqlite"
+        """transform Common Table Expression SQL into acceptable SQLite SQLs
+           with w    as (y) z => create w as y;z
+           with w(x) as (y) z => create w(x);insert into w y;z
+        """
         q_raw=q_in.strip()
         if  self.engine != "sqlite" or q_raw[:4].lower()!="with":  
             #normal execute
             return self._execute_sql(q_raw,env)
         else:
-            #transform the cte
-            return self._execute_sql(q_raw,env)
+            #transform the CTE into SQlite acceptable sql instructions
+            #create a fake separator "<µ£!" to split sql at each '(', ')', ','
+            ctex = "<µ£!,".join(self._splitcsv(q_raw[4:], ",", "'"))
+            ctex = "<µ£!(".join(self._splitcsv(ctex, "(", "'"))
+            ctex = "<µ£!)".join(self._splitcsv(ctex, ")", "'"))
+            #split the intial raw sql accordingly
+            ctel = self._splitcsv(ctex,"<µ£!") 
+
+            #initialization before starting analisys
+            level = 0 # index of current nested level of parenthesis
+            cte_deb = 0 #index of current CTE temporary table start 
+            cte_opening=0 # index of last opening parenthesis at level 0
+            cte_as_definition = False # is current CTE  in 't(x) as ()' form ?
+
+            #decoding of the CTE part of the sql
+            for i in range(len(ctel)):
+                if ctel[i][0] == "(": #one more level of parenthesis
+                    if level == 0:
+                        cte_opening = i #for later removal
+                    level += 1
+                elif ctel[i][0] == ")": #one less level of parenthesis
+                    level -= 1
+                    if level == 0: #when we're back to zero level
+                        #ignore 'as'case of "with X as (select..." 
+                        if ((ctel[i]+" x").split()[1]).lower() == "as":
+                            #if 'as' , we will do a create+insert
+                            cte_as_definition = True
+                            #mark this cte table for future deletion
+                            tmp_t = ctel[cte_deb].split()[0]
+                            #replace the ' as ' 
+                            ctel[i] = " ;\ninsert into [%s] " % tmp_t 
+                        else:
+                            #mark this cte table for future deletion
+                            tmp_t = ctel[cte_deb].split()[0]
+                            self.cte_tables.append (tmp_t)
+                            #transform the raw_sql
+                            #  with a safety pre_destroy if was existing 
+                            ctel[cte_deb] = ("DROP TABLE IF EXISTS [%s];" % 
+                                tmp_t + "create temp table " + ctel[cte_deb])
+                            #remove opening & closing bracket of CTE definition
+                            ctel[cte_opening] = ctel[cte_opening][1:]
+                            ctel[i]=";"+ctel[i][1:]
+                            
+                            #check if next part of the raw_sql is another cte
+                            if ctel[i].strip() == ";" and ctel[i+1][0] == ",":
+                                #it is : set start ot this next cte table
+                                ctel[i+1] = ctel[i+1][1:]  
+                                cte_opening = cte_deb = i+1 
+                                cte_as_definition = False
+                            else:
+                                #it is not : end of CTE, stop transformations
+                                break
+            q_final = " ".join(ctel)                
+            #CTE decoding has created multiple sql separated per a ';'
+            print ("q_final",q_final)
+            for q_single in self._splitcsv(q_final,';') :
+                if q_single.strip() != "":
+                    cur = self._execute_sql(q_single,env)
+            return cur
 
 
     def _ensure_data_frame(self, obj, name):
