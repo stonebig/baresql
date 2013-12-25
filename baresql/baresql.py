@@ -313,7 +313,7 @@ if __name__ == '__main__':
         #user = [(i, "user N°"+str(i)) for i in range(5)]
         #limit = 2 
         #sql = "select * from user$$ where c0 <= $limit"
-        #print (bsqldf(sql) 
+        #print (bsqldf(sql)) 
 
         ##multiple-sql example
         #sql = '''drop table if exists winner;
