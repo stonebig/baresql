@@ -167,7 +167,6 @@ class baresql(object):
                                 break
             q_final = " ".join(ctel)                
             #CTE decoding has created multiple sql separated per a ';'
-            print ("q_final",q_final)
             for q_single in self._splitcsv(q_final,';') :
                 if q_single.strip() != "":
                     cur = self._execute_sql(q_single,env)
