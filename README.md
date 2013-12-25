@@ -24,9 +24,9 @@ http://nbviewer.ipython.org/github/stonebig/baresql/blob/master/examples/baresql
 To Do :
 -------
 
- * extending python sql motor with a basic CTE (Common Table Expression),
+ * ~~extending python sql motor with a basic CTE (Common Table Expression),~~
  * Travis-CI infrastructure
- * allowing other databases (via pyqt ?).
+ * allowing other databases (via pyqt ? pandas patches ? sqlalchemy ?)
 
 Help is welcome.
 
@@ -40,4 +40,6 @@ Version :
 ---------
  * 0.1 : initial version
  * 0.2 : add "range(10)" iterable object support 
- * 0.3 (dev) : will include a basic CTE
+ * 0.3 : includes a basic CTE
+ * 0.4 dev : experiment with Travis-CI
+ * 0.5 futur : have another sql motor working in python3 + windows
