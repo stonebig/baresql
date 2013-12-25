@@ -237,6 +237,10 @@ class baresql(object):
                 msg = "please follow SQLite column naming conventions: "
                 msg += "http://www.sqlite.org/lang_keywords.html"
                 raise Exception(msg)
+        self.log.append("(pandas) create table [%s] ..." % tablename)  
+        cards = ','.join(['?'] * len(df.columns))
+        self.log.append("(pandas) INSERT INTO [%s] VALUES (%s)"
+        % (tablename , cards))        
         write_frame(df, name = tablename, con = self.conn, flavor = 'sqlite')
 
 
@@ -298,23 +302,34 @@ class baresql(object):
 
    
 if __name__ == '__main__':
-        #create the object
-        bsql = baresql() # in memory
+        #create the object and 'comfort' shorcuts
+        bsql = baresql() # Create an Sqlite Instance in memory
 
-        user = [(i, "user N°"+str(i)) for i in range(5)]
-        limit = 2 
-        sql = "select * from user$$ where c0 <= $limit"
+        bsqldf = lambda q: bsql.df(q, dict(globals(),**locals()))
+        bsqlrows = lambda q: bsql.rows(q, dict(globals(),**locals()))
+        bsqlcolumn = lambda q: bsql.column(q, dict(globals(),**locals()))
 
-        print (bsql.df(sql,locals())) 
+        ##basic example 
+        #user = [(i, "user N°"+str(i)) for i in range(5)]
+        #limit = 2 
+        #sql = "select * from user$$ where c0 <= $limit"
+        #print (bsqldf(sql) 
 
-        #more sophisticate
-        bsqldf = lambda q: bsql.df(q,  dict(globals(),**locals()))
-        
-        sql = '''drop table if exists winner;
-               create table winner as 
-                   select c0 No, c1 Name from user$$ where c0 > $limit ;
-               select * from winner'''
-               
-               
-        print ( bsqldf(sql) )
+        ##multiple-sql example
+        #sql = '''drop table if exists winner;
+        #       create table winner as select * from user$$ where c0 > $limit ;
+        #       select * from winner'''
+        #print (bsqlrows(sql) )
+
+        ## Common Table Expression (in SQLite) example
+        ## Let's find the Primes numbers below 100  
+        #bsql=baresql(keep_log = True ) #Trace how Sqlite is feeded
+        #ints=[ i for i in range(2,100)]
+        #sql="""with i as (select cast(c0 as INTEGER) as n from ints$$),
+        #    non_primes as (select distinct i.n from i 
+        #    inner join i as j on i.n>=j.n*j.n where round(i.n/j.n)*j.n = i.n )
+        #    select * from i where n not in (select * from non_primes)
+        #    """ 
+        #print (bsqlcolumn(sql)) #show resut
+        #print("\n".join(bsql.log)) #show how it happened
         
