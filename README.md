@@ -15,6 +15,10 @@ baresql improves sql agility of python data science beginners by :
 
 By default baresql is tested on windows/python3.3 (winpython3.3)
 
+Examples
+--------
+http://nbviewer.ipython.org/github/stonebig/baresql/blob/master/examples/baresql_with_cte.ipynb
+
 To Do :
 -------
 
