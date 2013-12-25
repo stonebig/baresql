@@ -19,6 +19,8 @@ Examples
 --------
 http://nbviewer.ipython.org/github/stonebig/baresql/blob/master/examples/baresql_with_cte.ipynb
 
+http://nbviewer.ipython.org/github/stonebig/baresql/blob/master/examples/baresql_with_cte_code_included.ipynb
+
 To Do :
 -------
 
