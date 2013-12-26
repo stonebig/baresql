@@ -54,6 +54,7 @@ class baresql(object):
         self.conn = sqlite.connect(self.dbname, 
                                    detect_types = sqlite.PARSE_DECLTYPES)
         self.tmp_tables = []
+        self.cte_views = []
         self.cte_tables = []
 
         #logging infrastructure
@@ -68,15 +69,16 @@ class baresql(object):
     def remove_tmp_tables(self, origin="all"):
         "remove temporarly created tables"
         if origin in ("all", "tmp"):
-            for table_sql in self.tmp_tables:
-                pre_q = "DROP TABLE IF EXISTS [%s]" % table_sql
-                cur = self._execute_sql(pre_q )
+            for table in self.tmp_tables:
+                cur = self._execute_sql("DROP TABLE IF EXISTS [%s]" % table)
             self.tmp_tables = []
             
         if origin in("all", "cte"):
-            for table_sql in self.cte_tables:
-                pre_q = "DROP TABLE IF EXISTS [%s]" % table_sql
-                cur = self._execute_sql(pre_q )
+            for view in self.cte_views:
+                cur = self._execute_sql("DROP VIEW IF EXISTS [%s]" % view)
+            self.cte_views = []
+            for table in self.cte_tables:
+                cur = self._execute_sql("DROP table IF EXISTS [%s]" % table)
             self.cte_tables = []
 
     def _splitcsv(self, csv_in, separator = ",", string_limit = "'"):
@@ -125,7 +127,7 @@ class baresql(object):
             level = 0 # index of current nested level of parenthesis
             cte_deb = 0 #index of current CTE temporary table start 
             cte_opening=0 # index of last opening parenthesis at level 0
-            cte_as_definition = False # is current CTE  in 't(x) as ()' form ?
+            cte_as = 0 # index of as in current CTE  if "with X(...) as" case 
 
             #decoding of the CTE part of the sql
             for i in range(len(ctel)):
@@ -136,22 +138,28 @@ class baresql(object):
                 elif ctel[i][0] == ")": #one less level of parenthesis
                     level -= 1
                     if level == 0: #when we're back to zero level
-                        #ignore 'as'case of "with X as (select..." 
+                        #'as' case of "with X(...) as " 
                         if ((ctel[i]+" x").split()[1]).lower() == "as":
-                            #if 'as' , we will do a create+insert
-                            cte_as_definition = True
-                            #mark this cte table for future deletion
-                            tmp_t = ctel[cte_deb].split()[0]
-                            #replace the ' as ' 
-                            ctel[i] = " ;\ninsert into [%s] " % tmp_t 
+                            cte_as = i
                         else:
-                            #mark this cte table for future deletion
+                            #end of a cte, let's transform the raw_sql
+                            #get name of the cte view/table
                             tmp_t = ctel[cte_deb].split()[0]
-                            self.cte_tables.append (tmp_t)
-                            #transform the raw_sql
-                            #  with a safety pre_destroy if was existing 
-                            ctel[cte_deb] = ("DROP TABLE IF EXISTS [%s];" % 
-                                tmp_t + "create temp table " + ctel[cte_deb])
+                            if cte_as > 0:
+                               #if "with X(...) as", we do create table +insert
+                               ctel[cte_deb] = ("DROP TABLE IF EXISTS [%s];" % 
+                                 tmp_t + "create temp table " + ctel[cte_deb])
+                               #replace the ' as '
+                               ctel[cte_as] = ");\ninsert into [%s] " % tmp_t 
+                               #mark the cte table for future deletion
+                               self.cte_tables.insert (0 , tmp_t)
+                            else:
+                               #if "with X as (", we do create view
+                               ctel[cte_deb] = ("DROP VIEW IF EXISTS [%s];" % 
+                                 tmp_t + "create temp view " + ctel[cte_deb])
+                               #mark the cte view for future deletion
+                               self.cte_views.insert (0 , tmp_t)
+
                             #remove opening & closing bracket of CTE definition
                             ctel[cte_opening] = ctel[cte_opening][1:]
                             ctel[i]=";"+ctel[i][1:]
@@ -161,7 +169,7 @@ class baresql(object):
                                 #it is : set start ot this next cte table
                                 ctel[i+1] = ctel[i+1][1:]  
                                 cte_opening = cte_deb = i+1 
-                                cte_as_definition = False
+                                cte_as = 0
                             else:
                                 #it is not : end of CTE, stop transformations
                                 break
