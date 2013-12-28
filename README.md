@@ -41,5 +41,6 @@ Version :
  * 0.1 : initial version
  * 0.2 : add "range(10)" iterable object support 
  * 0.3 : includes a basic CTE
+ * 0.3.1 : support comments in the SQL
  * 0.4 dev : experiment with Travis-CI
  * 0.5 futur : have another sql motor working in python3 + windows
