@@ -10,8 +10,10 @@ class baresql(object):
     baresql allows you to query in sql any of your python datas.
     
     in the sql :
-    - '$s' refers to the variable 's' 
-    - 'l$$' refers to the table created with the list/array/dictionnary 'l'
+ 
+     - '$s' refers to the variable 's'
+     
+     - 'l$$' refers to the table created with the list/array/dictionnary 'l'
             columns of 'l$$' will be l$$.c0 ... l$$.cN (unless pre-defined)
 
     example :
@@ -94,9 +96,13 @@ class baresql(object):
             #Correct split is on this separator
             return string_limit.join(x).split("<µ²é£>")
 
-    def _cleanup_sql(self, sql_in, separator = ",", string_limit = "'"):
-        "remove --comments from the sql"
-        q=["\n".join((x.split("\n")[1:])) for x in self._splitcsv(sql_in,"--")]
+    def _cleanup_sql(self, sql, separator = ",", string_limit = "'"):
+        "remove --comments then /*comments*/ from the sql"
+        q = "\n".join([self._splitcsv(x,"--")[0] for x in sql.splitlines()])
+        q2 = self._splitcsv(q, "/*")
+        while len(q2) > 1:
+            q = q2[0]+("/*".join(q2[1:])).partition("*/")[2]
+            q2 = self._splitcsv(q, "/*")
         return q
              
     def _execute_sql(self, q_in ,  env = None):
@@ -110,7 +116,7 @@ class baresql(object):
            with w    as (y) z => create w as y;z
            with w(x) as (y) z => create w(x);insert into w y;z
         """
-        q_raw=q_in.strip()
+        q_raw = q_in.strip()
         if  self.engine != "sqlite" or q_raw[:4].lower()!="with":  
             #normal execute
             return self._execute_sql(q_raw,env)
@@ -244,10 +250,11 @@ class baresql(object):
                 msg = "please follow SQLite column naming conventions: "
                 msg += "http://www.sqlite.org/lang_keywords.html"
                 raise Exception(msg)
-        self.log.append("(pandas) create table [%s] ..." % tablename)  
-        cards = ','.join(['?'] * len(df.columns))
-        self.log.append("(pandas) INSERT INTO [%s] VALUES (%s)"
-        % (tablename , cards))        
+        if self.do_log:
+            self.log.append("(pandas) create table [%s] ..." % tablename)  
+            cards = ','.join(['?'] * len(df.columns))
+            self.log.append("(pandas) INSERT INTO [%s] VALUES (%s)"
+                 % (tablename , cards))        
         write_frame(df, name = tablename, con = self.conn, flavor = 'sqlite')
 
 
@@ -262,9 +269,10 @@ class baresql(object):
              dict(globals(),**locals()) is the default python view of variables
         """
 
-        #initial cleanup (if we couldn't do it before)
-        self.remove_tmp_tables
-
+        #initial cleanup 
+        self.remove_tmp_tables # remove temp objects created for previous sql
+        q = self._cleanup_sql(q) #remove annoying comments from the next sql
+        
         tables = self._extract_table_names(q, env)
         for table_ref in tables:
             table_sql = table_ref+"$$"
