@@ -235,66 +235,9 @@ class baresql(object):
             return self._execute_sql(q_raw,env)
         else:
             #transform the CTE into SQlite acceptable sql instructions
-            #create a fake separator "<µ£!" to split sql at each '(', ')', ','
-            ctex = "<µ£!,".join(self._splitcsv(q_raw[4:], ",", "'"))
-            ctex = "<µ£!(".join(self._splitcsv(ctex, "(", "'"))
-            ctex = "<µ£!)".join(self._splitcsv(ctex, ")", "'"))
-            #split the intial raw sql accordingly
-            ctel = self._splitcsv(ctex,"<µ£!") 
-
-            #initialization before starting analisys
-            level = 0 # index of current nested level of parenthesis
-            cte_deb = 0 #index of current CTE temporary table start 
-            cte_opening=0 # index of last opening parenthesis at level 0
-            cte_as = 0 # index of as in current CTE  if "with X(...) as" case 
-
-            #decoding of the CTE part of the sql
-            for i in range(len(ctel)):
-                if ctel[i][0] == "(": #one more level of parenthesis
-                    if level == 0:
-                        cte_opening = i #for later removal
-                    level += 1
-                elif ctel[i][0] == ")": #one less level of parenthesis
-                    level -= 1
-                    if level == 0: #when we're back to zero level
-                        #'as' case of "with X(...) as " 
-                        if ((ctel[i]+" x").split()[1]).lower() == "as":
-                            cte_as = i
-                        else:
-                            #end of a cte, let's transform the raw_sql
-                            #get name of the cte view/table
-                            tmp_t = ctel[cte_deb].split()[0]
-                            if cte_as > 0:
-                               #if "with X(...) as", we do create table +insert
-                               ctel[cte_deb] = ("DROP TABLE IF EXISTS [%s];" % 
-                                 tmp_t + "create temp table " + ctel[cte_deb])
-                               #replace the ' as '
-                               ctel[cte_as] = ");\ninsert into [%s] " % tmp_t 
-                               #mark the cte table for future deletion
-                               self.cte_tables.insert (0 , tmp_t)
-                            else:
-                               #if "with X as (", we do create view
-                               ctel[cte_deb] = ("DROP VIEW IF EXISTS [%s];" % 
-                                 tmp_t + "create temp view " + ctel[cte_deb])
-                               #mark the cte view for future deletion
-                               self.cte_views.insert (0 , tmp_t)
-
-                            #remove opening & closing bracket of CTE definition
-                            ctel[cte_opening] = ctel[cte_opening][1:]
-                            ctel[i]=";"+ctel[i][1:]
-                            
-                            #check if next part of the raw_sql is another cte
-                            if ctel[i].strip() == ";" and ctel[i+1][0] == ",":
-                                #it is : set start ot this next cte table
-                                ctel[i+1] = ctel[i+1][1:]  
-                                cte_opening = cte_deb = i+1 
-                                cte_as = 0
-                            else:
-                                #it is not : end of CTE, stop transformations
-                                break
-            q_final = " ".join(ctel)                
-            #CTE decoding has created multiple sql separated per a ';'
-            for q_single in self._splitcsv(q_final,';') :
+            q_final_list = self._split_sql_cte(sql) 
+            #multiple sql must be executed one by one
+            for q_single in q_final_list:
                 if q_single.strip() != "":
                     cur = self._execute_sql(q_single,env)
             return cur
