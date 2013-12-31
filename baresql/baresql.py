@@ -96,13 +96,60 @@ class baresql(object):
             #Correct split is on this separator
             return string_limit.join(x).split("<µ²é£>")
 
+    def get_token(self, sql, start = 0):
+        "return next token type and ending+1 from given sql start position"
+        length = len(sql)
+        i = start
+        token = 'TK_OTHER'
+        dico = {' ':'TK_SP', '\t':'TK_SP', '\n':'TK_SP', '\f':'TK_SP', 
+         '\r':'TK_SP', '(':'TK_LP', ')':'TK_RP', ';':'TK_SEMI', ',':'TK_COMMA', 
+         '/':'TK_OTHER', "'":'TK_STRING',"-":'TK_OTHER'}
+        if length >  start:
+            if sql[i] == "-" and  i < length and sql[i:i+2] == "--" :
+                #an end-of-line comment 
+                token='TK_COM'
+                i = sql.find("\n", start)+1 #TK_COM feeding
+                if i <= 0:
+                    i = length    
+            elif sql[i] == "/" and  i < length and sql[i:i+2] == "/*":
+                #a comment block 
+                token='TK_COM'
+                i = sql.find("*/",start)+2 #TK_COM feeding
+                if i <= 1:
+                    i = length   
+            elif sql[i] not in dico : #TK_OTHER feeding
+                while i < length and sql[i] not in dico:
+                    i += 1 
+            else:     
+                token = dico[sql[i]]
+                i += 1
+                if token == 'TK_SP': #TK_SP feeding
+                    while (i < length and sql[i] in dico and 
+                    dico[sql[i]] == 'TK_SP'):
+                        i+=1 
+                if token == 'TK_STRING': #TK_STRING feeding
+                    while (i < length and sql[i] == "'"):
+                        i+=1 #other (don't bother, case)
+        return i, token
+
+    def get_sqlsplit(self, sql, remove_comments=False):
+        "split an sql file in list of separated sql orders"
+        beg = end = 0; length = len(sql)
+        sqls=[]
+        while end < length:
+            res = self.get_token(sql,end)
+            if res[1]=='TK_SEMI' or res[0] == length: # end of a single sql order
+                sqls.append(sql[beg:res[0]])
+                beg = res[0]
+            if res[1]=='TK_COM' and remove_comments: # optionnal clear of comments
+                sql = sql[:end]+' '+ sql[res[0]:] 
+                length = len(sql)
+            end = res[0] 
+        return sqls
+        
     def _cleanup_sql(self, sql, separator = ",", string_limit = "'"):
         "remove --comments then /*comments*/ from the sql"
-        q = "\n".join([self._splitcsv(x,"--")[0] for x in sql.splitlines()])
-        q2 = self._splitcsv(q, "/*")
-        while len(q2) > 1:
-            q = q2[0]+("/*".join(q2[1:])).partition("*/")[2]
-            q2 = self._splitcsv(q, "/*")
+        q = "".join(get_sqlsplit(sql,remove_comments = True))
         return q
              
     def _execute_sql(self, q_in ,  env = None):
