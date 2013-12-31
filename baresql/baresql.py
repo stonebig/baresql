@@ -193,8 +193,8 @@ class baresql(object):
                         #get name of the cte view/table
                         if v_full != "":
                             #if "with X(...) as", we do create table +insert
-                            sqls.append("DROP TABLE IF EXISTS %s;" % v_name)
-                            sqls.append("create temp table %s;" % v_full)
+                            sqls.append("DROP TABLE IF EXISTS %s " % v_name)
+                            sqls.append("create temp table %s " % v_full)
                             #insert the cte in that table
                             sqls.append("insert into  %s %s" % (v_name
                                         ,  sql[cte_lp + 1:cte_rp]))
@@ -202,9 +202,9 @@ class baresql(object):
                             self.cte_tables.insert (0 , v_name)
                         else:
                              #if "with X as (", we do create view
-                             sqls.append("DROP VIEW IF EXISTS %s;" % v_name)
+                             sqls.append("DROP VIEW IF EXISTS %s " % v_name)
                              #add the cte as a view
-                             sqls.append("create temp view %s as %s;" % (v_name
+                             sqls.append("create temp view %s as %s " % (v_name
                                          , sql[cte_lp + 1:cte_rp]))
                              #mark the cte view for future deletion
                              self.cte_views.insert (0 , v_name)
@@ -396,5 +396,5 @@ if __name__ == '__main__':
         #    select * from i where n not in (select * from non_primes)
         #    """ 
         #print (bsqlcolumn(sql)) #show resut
-        #print("\n".join(bsql.log)) #show how it happened
+        #print(";\n".join(bsql.log)) #show how it happened
         
