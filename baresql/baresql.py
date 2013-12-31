@@ -154,6 +154,76 @@ class baresql(object):
             self.log.append(q_in)
         return execute(q_in ,self.conn, params=env)
 
+
+    def _split_sql_cte(self, sql):
+        beg = end = 0; length = len(sql)
+        is_with = False
+        status = "normal"
+        sqls = []
+        level = 0 
+        while end<length:
+            res = self.get_token(sql,end)
+            if res[1]=='TK_SEMI' or res[0] == length: #sql standard
+                sqls.append(sql[beg:res[0]])
+                beg = res[0]
+                level = 0
+                status = "normal"
+            elif ((status == "normal" and level == 0 and res[1] =="TK_OTHER" and
+            sql[end:res[0]].lower() == "with") 
+            or (res[1] == 'TK_COMMA' and status == "cte_next")):
+                status = "cte_start"; v_full=""
+                is_with = True #cte_launcher
+            elif status == "cte_next"  and res[1]=="TK_OTHER":
+                status = "normal"; beg = end
+            elif status == "cte_start"  and res[1]=="TK_OTHER":
+                status = "cte_viewname"
+                v_name = sql[end:res[0]] ; beg=end #new beginning of sql
+            elif status == "cte_viewname"  and level == 0 and res[1]=="TK_OTHER":
+                if sql[end:res[0]].lower() == "as": 
+                    status = "cte_select"
+                else:
+                    cte_table = sql[end:res[0]]
+            elif res[1]=='TK_LP':
+                    level += 1
+                    if level == 1 :
+                        cte_lp = end #for later removal, if a cte expression
+            elif res[1] == 'TK_RP':
+                level -= 1
+                if level == 0:
+                    if status == "cte_viewname":
+                        v_full = sql[beg:res[0]]
+                    elif status == "cte_select":
+                        beg = cte_rp = end
+                        status = "cte_next"
+                        #end of a cte, let's transform the raw_sql
+                        #get name of the cte view/table
+                        if v_full != "":
+                            #if "with X(...) as", we do create table +insert
+                            sqls.append("DROP TABLE IF EXISTS %s;" % v_name)
+                            sqls.append("create temp table %s;" % v_full)
+                            #insert the cte in that table
+                            sqls.append("insert into  %s %s" % (v_name ,
+                                                          sql[cte_lp + 1:cte_rp]))
+                            #mark the cte table for future deletion
+                            self.cte_tables.insert (0 , v_name)
+                        else:
+                             #if "with X as (", we do create view
+                             sqls.append("DROP VIEW IF EXISTS %s;" % v_name)
+                             #add the cte as a view
+                             sqls.append("create temp view %s as %s;" % (v_name ,
+                                                          sql[cte_lp + 1:cte_rp]))
+                             #mark the cte view for future deletion
+                             self.cte_views.insert (0 , v_name)
+
+            if res[1] == 'TK_SEMI' or res[0] == len(sql):
+                sqls.append(sql[beg:res[0]])
+                beg = res[0]
+                level = 0
+                status="normal"
+            end = res[0] 
+        return sqls
+
+
     def _execute_cte(self, q_in,  env):
         """transform Common Table Expression SQL into acceptable SQLite SQLs
            with w    as (y) z => create w as y;z
