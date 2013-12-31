@@ -40,7 +40,6 @@ class baresql(object):
         "sqlite://" = sqlite in memory
         "sqlite:///.baresql.db" = sqlite on disk database ".baresql.db"
         """
-
         #identify sql engine and database
         self.connection = connection
         self.engine = connection.split("://")[0]
@@ -63,10 +62,12 @@ class baresql(object):
         self.do_log = keep_log
         self.log = []
 
+
     def close(self):
         "proper closing"
         self.remove_tmp_tables
         self.conn.close
+
 
     def remove_tmp_tables(self, origin="all"):
         "remove temporarly created tables"
@@ -83,18 +84,6 @@ class baresql(object):
                 cur = self._execute_sql("DROP table IF EXISTS [%s]" % table)
             self.cte_tables = []
 
-    def _splitcsv(self, csv_in, separator = ",", string_limit = "'"):
-        "split a csv string respecting string delimiters"
-        x = csv_in.split(string_limit)
-        if len(x) == 1 :
-            #Basic situation no string delimiter to worry about
-            return csv_in.split(separator)
-        else:
-            #Identify and replace active separators : the ones not in a string 
-            for i in range(0,len(x), 2):
-               x[i] = x[i].replace(separator, "<µ²é£>")
-            #Correct split is on this separator
-            return string_limit.join(x).split("<µ²é£>")
 
     def get_token(self, sql, start = 0):
         "return next token type and ending+1 from given sql start position"
@@ -132,16 +121,17 @@ class baresql(object):
                         i+=1 #other (don't bother, case)
         return i, token
 
+
     def get_sqlsplit(self, sql, remove_comments=False):
         "split an sql file in list of separated sql orders"
         beg = end = 0; length = len(sql)
         sqls=[]
         while end < length:
             res = self.get_token(sql,end)
-            if res[1]=='TK_SEMI' or res[0] == length: # end of a single sql order
+            if res[1]=='TK_SEMI' or res[0] == length: # end of a single sql
                 sqls.append(sql[beg:res[0]])
                 beg = res[0]
-            if res[1]=='TK_COM' and remove_comments: # optionnal clear of comments
+            if res[1]=='TK_COM' and remove_comments: # clear comments option
                 sql = sql[:end]+' '+ sql[res[0]:] 
                 length = len(sql)
             end = res[0] 
@@ -156,41 +146,45 @@ class baresql(object):
 
 
     def _split_sql_cte(self, sql):
+        """
+        split a cte sql in several non-cte sqls
+        feed cte_views + cte_tables list for post-execution clean-up
+        """
         beg = end = 0; length = len(sql)
         is_with = False
         status = "normal"
         sqls = []
         level = 0 
         while end<length:
-            res = self.get_token(sql,end)
-            if res[1]=='TK_SEMI' or res[0] == length: #sql standard
-                sqls.append(sql[beg:res[0]])
+            res = self.get_token(sql,end) ; token = res[1]
+            if res[1]=='TK_SEMI' or res[0] == length: #a non-cte sql
+                sqls.append(sql[beg:res[0]]) 
                 beg = res[0]
                 level = 0
                 status = "normal"
-            elif ((status == "normal" and level == 0 and res[1] =="TK_OTHER" and
+            elif ((status == "normal" and level == 0 and token =="TK_OTHER" and
             sql[end:res[0]].lower() == "with") 
-            or (res[1] == 'TK_COMMA' and status == "cte_next")):
+            or (token == 'TK_COMMA' and status == "cte_next")):
                 status = "cte_start"; v_full=""
                 is_with = True #cte_launcher
-            elif status == "cte_next"  and res[1]=="TK_OTHER":
+            elif status == "cte_next"  and token=="TK_OTHER":
                 status = "normal"; beg = end
-            elif status == "cte_start"  and res[1]=="TK_OTHER":
-                status = "cte_viewname"
+            elif status == "cte_start"  and token=="TK_OTHER":
+                status = "cte_name"
                 v_name = sql[end:res[0]] ; beg=end #new beginning of sql
-            elif status == "cte_viewname"  and level == 0 and res[1]=="TK_OTHER":
+            elif status == "cte_name"  and level == 0 and token=="TK_OTHER":
                 if sql[end:res[0]].lower() == "as": 
                     status = "cte_select"
                 else:
                     cte_table = sql[end:res[0]]
-            elif res[1]=='TK_LP':
+            elif token=='TK_LP':
                     level += 1
                     if level == 1 :
                         cte_lp = end #for later removal, if a cte expression
-            elif res[1] == 'TK_RP':
+            elif token == 'TK_RP':
                 level -= 1
                 if level == 0:
-                    if status == "cte_viewname":
+                    if status == "cte_name":
                         v_full = sql[beg:res[0]]
                     elif status == "cte_select":
                         beg = cte_rp = end
@@ -202,20 +196,20 @@ class baresql(object):
                             sqls.append("DROP TABLE IF EXISTS %s;" % v_name)
                             sqls.append("create temp table %s;" % v_full)
                             #insert the cte in that table
-                            sqls.append("insert into  %s %s" % (v_name ,
-                                                          sql[cte_lp + 1:cte_rp]))
+                            sqls.append("insert into  %s %s" % (v_name
+                                        ,  sql[cte_lp + 1:cte_rp]))
                             #mark the cte table for future deletion
                             self.cte_tables.insert (0 , v_name)
                         else:
                              #if "with X as (", we do create view
                              sqls.append("DROP VIEW IF EXISTS %s;" % v_name)
                              #add the cte as a view
-                             sqls.append("create temp view %s as %s;" % (v_name ,
-                                                          sql[cte_lp + 1:cte_rp]))
+                             sqls.append("create temp view %s as %s;" % (v_name
+                                         , sql[cte_lp + 1:cte_rp]))
                              #mark the cte view for future deletion
                              self.cte_views.insert (0 , v_name)
 
-            if res[1] == 'TK_SEMI' or res[0] == len(sql):
+            if token == 'TK_SEMI' or res[0] == len(sql):
                 sqls.append(sql[beg:res[0]])
                 beg = res[0]
                 level = 0
@@ -280,6 +274,7 @@ class baresql(object):
 
         return df
 
+
     def _extract_table_names(self, q, env):
         """
         extracts table names from a sql query whose :
@@ -287,7 +282,6 @@ class baresql(object):
             - name is found in given 'env' environnement
         example : "select * from a$$, b$$, a$$" may return ['a', 'b']
         """
-
         tables = set()
         next_is_table = False
         for query in q.split("$$"):
@@ -300,7 +294,6 @@ class baresql(object):
 
     def _write_table(self, tablename, df, conn):
         "writes a dataframe to the sqlite database"
-    
         for col in df.columns:
             if re.search("[() ]", col):
                 msg = "please follow SQLite column naming conventions: "
@@ -329,19 +322,20 @@ class baresql(object):
         self.remove_tmp_tables # remove temp objects created for previous sql
         q = "".join(self.get_sqlsplit(sql, True)) #remove comments from the sql 
         
+        #importation of needed Python tables into SQl
         tables = self._extract_table_names(q, env)
         for table_ref in tables:
             table_sql = table_ref+"$$"
             df = env[table_ref]
             df = self._ensure_data_frame(df, table_ref)
-            #pre_destroy temporary table
+            #destroy previous Python temp table before importing the new one
             pre_q = "DROP TABLE IF EXISTS [%s]" % table_sql
             cur = self._execute_sql (pre_q, env)
             self._write_table( table_sql, df, self.conn)
-        #multiple sql must be separated per a ';'
+        #multiple sql must be executed one by one
         for q_single in self.get_sqlsplit(sql, True) :
             if q_single.strip() != "":
-                #intermediate cleanup of previous cte tables, if there were
+                #cleanup previous CTE temp tables before executing another sql
                 self.remove_tmp_tables("cte")
                 cur = self._execute_cte(q_single,  env)
         return cur
