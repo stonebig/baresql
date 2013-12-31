@@ -108,7 +108,7 @@ class baresql(object):
             if sql[i] == "-" and  i < length and sql[i:i+2] == "--" :
                 #an end-of-line comment 
                 token='TK_COM'
-                i = sql.find("\n", start)+1 #TK_COM feeding
+                i = sql.find("\n", start) #TK_COM feeding
                 if i <= 0:
                     i = length    
             elif sql[i] == "/" and  i < length and sql[i:i+2] == "/*":
