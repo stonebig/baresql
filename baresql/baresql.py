@@ -155,15 +155,15 @@ class baresql(object):
         status = "normal"
         sqls = []
         level = 0 
-        while end<length:
-            res = self.get_token(sql,end) ; token = res[1]
-            if res[1]=='TK_SEMI' or res[0] == length: #a non-cte sql
-                sqls.append(sql[beg:res[0]]) 
-                beg = res[0]
+        while end < length:
+            tk_end , token = self.get_token(sql,end)
+            if token == 'TK_SEMI' or tk_end == length: #a non-cte sql
+                sqls.append(sql[beg:tk_end]) 
+                beg = tk_end
                 level = 0
                 status = "normal"
             elif ((status == "normal" and level == 0 and token =="TK_OTHER" and
-            sql[end:res[0]].lower() == "with") 
+            sql[end:tk_end].lower() == "with") 
             or (token == 'TK_COMMA' and status == "cte_next")):
                 status = "cte_start"; v_full=""
                 is_with = True #cte_launcher
@@ -171,12 +171,12 @@ class baresql(object):
                 status = "normal"; beg = end
             elif status == "cte_start"  and token=="TK_OTHER":
                 status = "cte_name"
-                v_name = sql[end:res[0]] ; beg=end #new beginning of sql
+                v_name = sql[end:tk_end] ; beg=end #new beginning of sql
             elif status == "cte_name"  and level == 0 and token=="TK_OTHER":
-                if sql[end:res[0]].lower() == "as": 
+                if sql[end:tk_end].lower() == "as": 
                     status = "cte_select"
                 else:
-                    cte_table = sql[end:res[0]]
+                    cte_table = sql[end:tk_end]
             elif token=='TK_LP':
                     level += 1
                     if level == 1 :
@@ -185,7 +185,7 @@ class baresql(object):
                 level -= 1
                 if level == 0:
                     if status == "cte_name":
-                        v_full = sql[beg:res[0]]
+                        v_full = sql[beg:tk_end]
                     elif status == "cte_select":
                         beg = cte_rp = end
                         status = "cte_next"
@@ -209,12 +209,12 @@ class baresql(object):
                              #mark the cte view for future deletion
                              self.cte_views.insert (0 , v_name)
 
-            if token == 'TK_SEMI' or res[0] == len(sql):
-                sqls.append(sql[beg:res[0]])
-                beg = res[0]
+            if token == 'TK_SEMI' or tk_end == len(sql):
+                sqls.append(sql[beg:tk_end])
+                beg = tk_end
                 level = 0
                 status="normal"
-            end = res[0] 
+            end = tk_end 
         return sqls
 
 
