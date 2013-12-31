@@ -147,10 +147,6 @@ class baresql(object):
             end = res[0] 
         return sqls
         
-    def _cleanup_sql(self, sql, separator = ",", string_limit = "'"):
-        "remove --comments then /*comments*/ from the sql"
-        q = "".join(self.get_sqlsplit(sql,remove_comments = True))
-        return q
              
     def _execute_sql(self, q_in ,  env = None):
         "execute sql but intercept log"
@@ -318,7 +314,7 @@ class baresql(object):
 
         #initial cleanup 
         self.remove_tmp_tables # remove temp objects created for previous sql
-        q = self._cleanup_sql(q) #remove annoying comments from the next sql
+        q = "".join(self.get_sqlsplit(sql, True)) #remove comments from the sql 
         
         tables = self._extract_table_names(q, env)
         for table_ref in tables:
@@ -330,7 +326,7 @@ class baresql(object):
             cur = self._execute_sql (pre_q, env)
             self._write_table( table_sql, df, self.conn)
         #multiple sql must be separated per a ';'
-        for q_single in self._splitcsv(q,';') :
+        for q_single in self.get_sqlsplit(sql, True) :
             if q_single.strip() != "":
                 #intermediate cleanup of previous cte tables, if there were
                 self.remove_tmp_tables("cte")
