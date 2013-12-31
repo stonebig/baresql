@@ -149,7 +149,7 @@ class baresql(object):
         
     def _cleanup_sql(self, sql, separator = ",", string_limit = "'"):
         "remove --comments then /*comments*/ from the sql"
-        q = "".join(get_sqlsplit(sql,remove_comments = True))
+        q = "".join(self.get_sqlsplit(sql,remove_comments = True))
         return q
              
     def _execute_sql(self, q_in ,  env = None):
