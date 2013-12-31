@@ -125,16 +125,16 @@ class baresql(object):
     def get_sqlsplit(self, sql, remove_comments=False):
         "split an sql file in list of separated sql orders"
         beg = end = 0; length = len(sql)
-        sqls=[]
+        sqls = []
         while end < length:
-            res = self.get_token(sql,end)
-            if res[1]=='TK_SEMI' or res[0] == length: # end of a single sql
-                sqls.append(sql[beg:res[0]])
-                beg = res[0]
-            if res[1]=='TK_COM' and remove_comments: # clear comments option
-                sql = sql[:end]+' '+ sql[res[0]:] 
+            tk_end , token = self.get_token(sql,end)
+            if token == 'TK_SEMI' or tk_end == length: # end of a single sql
+                sqls.append(sql[beg:tk_end])
+                beg = tk_end
+            if token == 'TK_COM' and remove_comments: # clear comments option
+                sql = sql[:end]+' '+ sql[tk_end:] 
                 length = len(sql)
-            end = res[0] 
+            end = tk_end 
         return sqls
         
              
