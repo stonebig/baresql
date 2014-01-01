@@ -57,6 +57,7 @@ class baresql(object):
         self.tmp_tables = []
         self.cte_views = []
         self.cte_tables = []
+        self.cte_dico = {} #dictionnary created from CTE definitions 
 
         #logging infrastructure
         self.do_log = keep_log
@@ -145,10 +146,11 @@ class baresql(object):
         return execute(q_in ,self.conn, params=env)
 
 
-    def _split_sql_cte(self, sql):
+    def _split_sql_cte(self, sql, with_view = True):
         """
         split a cte sql in several non-cte sqls
         feed cte_views + cte_tables list for post-execution clean-up
+        if with_view = False, inline the CTE views instead of creating them
         """
         beg = end = 0; length = len(sql)
         is_with = False
@@ -201,20 +203,25 @@ class baresql(object):
                             #mark the cte table for future deletion
                             self.cte_tables.insert (0 , v_name)
                         else:
-                             #if "with X as (", we do create view
-                             sqls.append("DROP VIEW IF EXISTS %s " % v_name)
-                             #add the cte as a view
-                             sqls.append("create temp view %s as %s " % (v_name
-                                         , sql[cte_lp + 1:cte_rp]))
-                             #mark the cte view for future deletion
-                             self.cte_views.insert (0 , v_name)
+                             if with_view: #for "with X as (", create a view
+                                 sqls.append("DROP VIEW IF EXISTS %s" % v_name)
+                                 #add the cte as a view
+                                 sqls.append("create temp view %s as %s " % (
+                                      v_name , sql[cte_lp + 1:cte_rp]))
+                                 #mark the cte view for future deletion
+                                 self.cte_views.insert (0 , v_name)
+                             else: #for "with X as (", create a dictionnary
+                                 self.cte_dico[v_name]=sql[cte_lp + 1:cte_rp]
 
             if token == 'TK_SEMI' or tk_end == len(sql):
                 sqls.append(sql[beg:tk_end])
                 beg = tk_end
                 level = 0
                 status="normal"
-            end = tk_end 
+                self.cte_dico = {}
+            # continue while loop            
+            end = tk_end
+        self.cte_dico = {}    
         return sqls
 
 
