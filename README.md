@@ -43,5 +43,6 @@ Version :
  * 0.3 : includes a basic CTE
  * 0.3.2 : support comments in the SQL
  * 0.4 : rewrite with token
+ * 0.4.1 : inline CTE when syntax is "with x as (y)"
  * 0.5 dev : experiment with Travis-CI
  * 0.6 futur : have another sql motor working in python3 + windows
