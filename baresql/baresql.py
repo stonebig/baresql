@@ -156,16 +156,17 @@ class baresql(object):
         is_with = False
         status = "normal"
         sqls = []
-        level = 0 
+        level = 0 ;from_lvl={0:False} ; last_other=""
         while end < length:
             tk_end , token = self.get_token(sql,end)
+            tk_value = sql[end:tk_end]
             if token == 'TK_SEMI' or tk_end == length: #a non-cte sql
                 sqls.append(sql[beg:tk_end]) 
                 beg = tk_end
                 level = 0
                 status = "normal"
             elif ((status == "normal" and level == 0 and token =="TK_OTHER" and
-            sql[end:tk_end].lower() == "with") 
+            tk_value.lower() == "with") 
             or (token == 'TK_COMMA' and status == "cte_next")):
                 status = "cte_start"; v_full=""
                 is_with = True #cte_launcher
@@ -173,14 +174,14 @@ class baresql(object):
                 status = "normal"; beg = end
             elif status == "cte_start"  and token=="TK_OTHER":
                 status = "cte_name"
-                v_name = sql[end:tk_end] ; beg=end #new beginning of sql
+                v_name = tk_value ; beg=end #new beginning of sql
             elif status == "cte_name"  and level == 0 and token=="TK_OTHER":
-                if sql[end:tk_end].lower() == "as": 
+                if tk_value.lower() == "as": 
                     status = "cte_select"
                 else:
-                    cte_table = sql[end:tk_end]
+                    cte_table = tk_value
             elif token=='TK_LP':
-                    level += 1
+                    level += 1 ;from_lvl[level] = False
                     if level == 1 :
                         cte_lp = end #for later removal, if a cte expression
             elif token == 'TK_RP':
@@ -221,6 +222,8 @@ class baresql(object):
                 self.cte_dico = {}
             # continue while loop            
             end = tk_end
+            if token != "TK_SP":
+                last_other = tk_value.lower()
         self.cte_dico = {}    
         return sqls
 
