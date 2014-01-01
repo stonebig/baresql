@@ -151,11 +151,11 @@ class baresql(object):
         return execute(q_in ,self.conn, params=env)
 
 
-    def _split_sql_cte(self, sql, cte_inline = False):
+    def _split_sql_cte(self, sql, cte_inline = True):
         """
         split a cte sql in several non-cte sqls
         feed cte_views + cte_tables list for post-execution clean-up
-        if cte_inline = False, inline the CTE views instead of creating them
+        if cte_inline = True, inline the CTE views instead of creating them
         """
         beg = end = 0; length = len(sql)
         is_with = False
@@ -209,7 +209,7 @@ class baresql(object):
                             #mark the cte table for future deletion
                             self.cte_tables.insert (0 , v_name)
                         else:
-                             if cte_inline: #for "with X as (", create a view
+                             if not cte_inline: #for "with X as (", create view
                                  sqls.append("DROP VIEW IF EXISTS %s" % v_name)
                                  #add the cte as a view
                                  sqls.append("create temp view %s as %s " % (
