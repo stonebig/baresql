@@ -225,7 +225,7 @@ class baresql(object):
                 level = 0
                 status="normal"
                 self.cte_dico = {}
-            elif token == "TK_OTHER" and not cte_inline: 
+            elif token == "TK_OTHER" and cte_inline: 
                 if tk_value.lower() == "from":
                     from_lvl[level] = True
                 elif from_lvl[level]:
