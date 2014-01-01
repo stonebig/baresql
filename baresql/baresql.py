@@ -165,12 +165,7 @@ class baresql(object):
         while end < length:
             tk_end , token = self.get_token(sql,end)
             tk_value = sql[end:tk_end]
-            if token == 'TK_SEMI' or tk_end == length: #a non-cte sql
-                sqls.append(sql[beg:tk_end]) 
-                beg = tk_end
-                level = 0
-                status = "normal"
-            elif ((status == "normal" and level == 0 and token =="TK_OTHER" and
+            if ((status == "normal" and level == 0 and token =="TK_OTHER" and
             tk_value.lower() == "with") 
             or (token == 'TK_COMMA' and status == "cte_next")):
                 status = "cte_start"; v_full=""
@@ -219,12 +214,6 @@ class baresql(object):
                              else: #for "with X as (", create a dictionnary
                                  self.cte_dico[v_name]=sql[cte_lp + 1:cte_rp]
 
-            if token == 'TK_SEMI' or tk_end == len(sql):
-                sqls.append(sql[beg:tk_end])
-                beg = tk_end
-                level = 0
-                status="normal"
-                self.cte_dico = {}
             elif token == "TK_OTHER" and cte_inline: 
                 if tk_value.lower() == "from":
                     from_lvl[level] = True
@@ -245,6 +234,13 @@ class baresql(object):
                         
                         tk_end , sql = len(sql2)   ,  sql2 + sql[tk_end:]
                         length = len(sql)                        
+
+            if token == 'TK_SEMI' or tk_end == len(sql): #a non-cte sql
+                sqls.append(sql[beg:tk_end])
+                beg = tk_end
+                level = 0
+                status="normal"
+                self.cte_dico = {}
             # continue while loop            
             end = tk_end
             if token != "TK_SP":
