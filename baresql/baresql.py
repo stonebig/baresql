@@ -33,12 +33,14 @@ class baresql(object):
        Copyright 2011-2012, Lambda Foundry, Inc. and PyData Development Team)
     """
 
-    def __init__(self, connection="sqlite://", keep_log = False):
+    def __init__(self, connection="sqlite://", keep_log = False, 
+                 cte_inline = True):
         """
         conn = connection string  
         example :
         "sqlite://" = sqlite in memory
         "sqlite:///.baresql.db" = sqlite on disk database ".baresql.db"
+        cte_inline = inline CTE for SQLite instead of creating temporary views
         """
         #identify sql engine and database
         self.connection = connection
@@ -55,10 +57,13 @@ class baresql(object):
         self.conn = sqlite.connect(self.dbname, 
                                    detect_types = sqlite.PARSE_DECLTYPES)
         self.tmp_tables = []
+
+        #SQLite CTE translation infrastructure
+        self.cte_inline = cte_inline
         self.cte_views = []
         self.cte_tables = []
         self.cte_dico = {} #dictionnary created from CTE definitions 
-
+        
         #logging infrastructure
         self.do_log = keep_log
         self.log = []
@@ -146,11 +151,11 @@ class baresql(object):
         return execute(q_in ,self.conn, params=env)
 
 
-    def _split_sql_cte(self, sql, with_view = False):
+    def _split_sql_cte(self, sql, cte_inline = False):
         """
         split a cte sql in several non-cte sqls
         feed cte_views + cte_tables list for post-execution clean-up
-        if with_view = False, inline the CTE views instead of creating them
+        if cte_inline = False, inline the CTE views instead of creating them
         """
         beg = end = 0; length = len(sql)
         is_with = False
@@ -204,7 +209,7 @@ class baresql(object):
                             #mark the cte table for future deletion
                             self.cte_tables.insert (0 , v_name)
                         else:
-                             if with_view: #for "with X as (", create a view
+                             if cte_inline: #for "with X as (", create a view
                                  sqls.append("DROP VIEW IF EXISTS %s" % v_name)
                                  #add the cte as a view
                                  sqls.append("create temp view %s as %s " % (
@@ -220,7 +225,7 @@ class baresql(object):
                 level = 0
                 status="normal"
                 self.cte_dico = {}
-            elif token == "TK_OTHER" and not with_view: 
+            elif token == "TK_OTHER" and not cte_inline: 
                 if tk_value.lower() == "from":
                     from_lvl[level] = True
                 elif from_lvl[level]:
@@ -259,7 +264,7 @@ class baresql(object):
             return self._execute_sql(q_raw,env)
         else:
             #transform the CTE into SQlite acceptable sql instructions
-            q_final_list = self._split_sql_cte(sql) 
+            q_final_list = self._split_sql_cte(sql, self.cte_inline) 
             #multiple sql must be executed one by one
             for q_single in q_final_list:
                 if q_single.strip() != "":
