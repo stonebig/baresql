@@ -146,7 +146,7 @@ class baresql(object):
         return execute(q_in ,self.conn, params=env)
 
 
-    def _split_sql_cte(self, sql, with_view = True):
+    def _split_sql_cte(self, sql, with_view = False):
         """
         split a cte sql in several non-cte sqls
         feed cte_views + cte_tables list for post-execution clean-up
@@ -220,6 +220,26 @@ class baresql(object):
                 level = 0
                 status="normal"
                 self.cte_dico = {}
+            elif token == "TK_OTHER" and not with_view: 
+                if tk_value.lower() == "from":
+                    from_lvl[level] = True
+                elif from_lvl[level]:
+                    if last_other in(',', 'from', 'join') and (
+                    tk_value in self.cte_dico):
+                        #check if next token is as
+                        bg , en , tknext = tk_end , tk_end , 'TK_SP'
+                        while en < length and tknext == 'TK_SP' :
+                            bg, (en , tknext) = en, self.get_token(sql , en)
+                        #avoid the "as x as y" situation
+                        if sql[bg:en].lower() != 'as': 
+                            sql2 = (sql[:end ] + "("+ self.cte_dico[tk_value] + 
+                              ") as " + tk_value + " ")
+                        else:
+                            sql2 = (sql[:end ] + "("+ self.cte_dico[tk_value] + 
+                              ")  " + " ")
+                        
+                        tk_end , sql = len(sql2)   ,  sql2 + sql[tk_end:]
+                        length = len(sql)                        
             # continue while loop            
             end = tk_end
             if token != "TK_SP":
