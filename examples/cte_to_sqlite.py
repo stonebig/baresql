@@ -172,8 +172,10 @@ def cte_to_sqlite(sql, cte_inline = True, remove_comments = False):
 if __name__ == '__main__':
     import sys
     import getopt
-    opts, args = getopt.getopt(sys.argv[1:], "i:o:v")
-    # process options
+    opts=[("z","z")]; demo = True ; cte_inline = True ; outfile = ""
+    if sys.argv[0] !="-c": #avoid issues with under Ipython
+        opts, args = getopt.getopt(sys.argv[1:], "i:o:v")
+        # process options
     sql = """with x as (y)
 , x1(z) as (select z from x)
 select * from x1 where z not in x"""               
@@ -199,4 +201,3 @@ select * from x1 where z not in x"""
                 myfile.write(cte_to_sqlite(sql, cte_inline))
         else:
             print(cte_to_sqlite(sql, cte_inline))
-        
