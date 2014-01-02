@@ -62,7 +62,6 @@ class baresql(object):
         self.cte_inline = cte_inline
         self.cte_views = []
         self.cte_tables = []
-        self.cte_dico = {} #dictionnary created from CTE definitions 
         
         #logging infrastructure
         self.do_log = keep_log
@@ -98,7 +97,8 @@ class baresql(object):
         token = 'TK_OTHER'
         dico = {' ':'TK_SP', '\t':'TK_SP', '\n':'TK_SP', '\f':'TK_SP', 
          '\r':'TK_SP', '(':'TK_LP', ')':'TK_RP', ';':'TK_SEMI', ',':'TK_COMMA', 
-         '/':'TK_OTHER', "'":'TK_STRING',"-":'TK_OTHER'}
+         '/':'TK_OTHER', "'":'TK_STRING',"-":'TK_OTHER',
+         '"':'TK_STRING', "`":'TK_STRING'}
         if length >  start:
             if sql[i] == "-" and  i < length and sql[i:i+2] == "--" :
                 #an end-of-line comment 
@@ -121,10 +121,13 @@ class baresql(object):
                 if token == 'TK_SP': #TK_SP feeding
                     while (i < length and sql[i] in dico and 
                     dico[sql[i]] == 'TK_SP'):
-                        i+=1 
+                        i += 1 
                 if token == 'TK_STRING': #TK_STRING feeding
-                    while (i < length and sql[i] == "'"):
-                        i+=1 #other (don't bother, case)
+                    delimiter = sql[i]                    
+                    if delimiter == sql[i]:
+                        token = 'TK_ID'
+                    while (i < length and sql[i] == delimiter):
+                        i += 1 #other (don't bother, case)
         return i, token
 
 
@@ -162,6 +165,7 @@ class baresql(object):
         status = "normal"
         sqls = []
         level = 0 ;from_lvl={0:False} ; last_other=""
+        cte_dico = {} #dictionnary created from CTE definitions 
         while end < length:
             tk_end , token = self.get_token(sql,end)
             tk_value = sql[end:tk_end]
@@ -196,40 +200,41 @@ class baresql(object):
                         #get name of the cte view/table
                         if v_full != "":
                             #if "with X(...) as", we do create table +insert
-                            sqls.append("DROP TABLE IF EXISTS %s " % v_name)
-                            sqls.append("create temp table %s " % v_full)
+                            sqls.append("DROP TABLE IF EXISTS %s;\n" % v_name)
+                            sqls.append("create temp table %s;\n" % v_full)
                             #insert the cte in that table
-                            sqls.append("insert into  %s %s" % (v_name
+                            sqls.append("insert into  %s %s;\n" % (v_name
                                         ,  sql[cte_lp + 1:cte_rp]))
                             #mark the cte table for future deletion
                             self.cte_tables.insert (0 , v_name)
                         else:
                              if not cte_inline: #for "with X as (", create view
-                                 sqls.append("DROP VIEW IF EXISTS %s" % v_name)
+                                 sqls.append("DROP VIEW IF EXISTS %s;\n"
+                                      % v_name)
                                  #add the cte as a view
-                                 sqls.append("create temp view %s as %s " % (
+                                 sqls.append("create temp view %s as %s;\n" % (
                                       v_name , sql[cte_lp + 1:cte_rp]))
                                  #mark the cte view for future deletion
                                  self.cte_views.insert (0 , v_name)
                              else: #for "with X as (", create a dictionnary
-                                 self.cte_dico[v_name]=sql[cte_lp + 1:cte_rp]
+                                 cte_dico[v_name]=sql[cte_lp + 1:cte_rp]
 
             elif token == "TK_OTHER" and cte_inline: 
                 if tk_value.lower() == "from":
                     from_lvl[level] = True
                 elif from_lvl[level]:
                     if last_other in(',', 'from', 'join') and (
-                    tk_value in self.cte_dico):
+                    tk_value in cte_dico):
                         #check if next token is as
                         bg , en , tknext = tk_end , tk_end , 'TK_SP'
                         while en < length and tknext == 'TK_SP' :
                             bg, (en , tknext) = en, self.get_token(sql , en)
                         #avoid the "as x as y" situation
                         if sql[bg:en].lower() != 'as': 
-                            sql2 = (sql[:end ] + "("+ self.cte_dico[tk_value] + 
+                            sql2 = (sql[:end ] + "("+ cte_dico[tk_value] + 
                               ") as " + tk_value + " ")
                         else:
-                            sql2 = (sql[:end ] + "("+ self.cte_dico[tk_value] + 
+                            sql2 = (sql[:end ] + "("+ cte_dico[tk_value] + 
                               ")  " + " ")
                         
                         tk_end , sql = len(sql2)   ,  sql2 + sql[tk_end:]
@@ -240,12 +245,11 @@ class baresql(object):
                 beg = tk_end
                 level = 0
                 status="normal"
-                self.cte_dico = {}
+                cte_dico = {}
             # continue while loop            
             end = tk_end
             if token != "TK_SP":
                 last_other = tk_value.lower()
-        self.cte_dico = {}    
         return sqls
 
 
