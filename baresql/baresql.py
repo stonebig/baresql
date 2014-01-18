@@ -355,10 +355,10 @@ class baresql(object):
 
         #initial cleanup 
         self.remove_tmp_tables # remove temp objects created for previous sql
-        q = "".join(self.get_sqlsplit(sql, True)) #remove comments from the sql 
+        sql = "".join(self.get_sqlsplit(q, True)) #remove comments from the sql 
         
         #importation of needed Python tables into SQl
-        tables = self._extract_table_names(q, env)
+        tables = self._extract_table_names(sql, env)
         for table_ref in tables:
             table_sql = table_ref+"$$"
             df = env[table_ref]
