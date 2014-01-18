@@ -144,6 +144,8 @@ class baresql(object):
                 sql = sql[:end]+' '+ sql[tk_end:] 
                 length = len(sql)
             end = tk_end 
+        if  beg < length  :
+               sqls.append(sql[beg:])
         return sqls
         
              
