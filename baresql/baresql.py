@@ -67,6 +67,15 @@ class baresql(object):
         self.do_log = keep_log
         self.log = []
 
+        #check if need cte_helper
+        self.cte_helper = False
+        if  self.engine == "sqlite":
+            cur=execute("select  sqlite_version()" ,self.conn)
+            version = cur.fetchall()[0][0]
+            cur.close
+            normalized=".".join( [("000"+i)[-3:] for i in version.split("." )]) 
+            if normalized<"003.008.003":
+                self.cte_helper = True
 
     def close(self):
         "proper closing"
@@ -261,7 +270,7 @@ class baresql(object):
            with w(x) as (y) z => create w(x);insert into w y;z
         """
         q_raw = q_in.strip()
-        if  self.engine != "sqlite" or q_raw[:4].lower()!="with":  
+        if  self.cte_helper == False or q_raw[:4].lower()!="with":  
             #normal execute
             return self._execute_sql(q_raw,env)
         else:
