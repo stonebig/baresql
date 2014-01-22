@@ -152,6 +152,7 @@ class baresql(object):
             if token == 'TK_COM' and remove_comments: # clear comments option
                 sql = sql[:end]+' '+ sql[tk_end:] 
                 length = len(sql)
+                tk_end = end + 1 
             end = tk_end 
         if  beg < length  :
                sqls.append(sql[beg:])
