@@ -45,5 +45,6 @@ Version :
  * 0.4 : rewrite with token
  * 0.4.1 : inline CTE when syntax is "with x as (y)"
  * 0.5 : use SQLite true CTE if SQLite >= 3.8.3
+ * 0.5.1 : bug correction + SQLite3.8.3 beta from 2013-01-22
  * 0.6 dev : experiment with Travis-CI
  * 0.7 futur : have another sql motor working in python3 + windows
