@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import re
+import numbers
 import sqlite3 as sqlite
 import numpy as np
 import pandas as pd
@@ -109,9 +110,11 @@ class baresql(object):
 
         #check if need cte_helper
         self.cte_helper = False
+        self.delimiters=['[',']']
         
         if  self.engine == "mysql": #chock : mysql doesn't support C.T.E !
             self.cte_helper = True
+            self.delimiters=['`','`']
             #http://stackoverflow.com/questions/17053435/mysql-connector-python-insert-python-variable-to-mysql-table
             try:
                 self.conn.set_converter_class(NumpyMySQLConverter)
@@ -135,15 +138,18 @@ class baresql(object):
         "remove temporarly created tables"
         if origin in ("all", "tmp"):
             for table in self.tmp_tables:
-                cur = self._execute_sql("DROP TABLE IF EXISTS %s" % table)
+                cur = self._execute_sql("DROP TABLE IF EXISTS %s" %
+                                        table.join(self.delimiters))
             self.tmp_tables = []
             
         if origin in("all", "cte"):
             for view in self.cte_views:
-                cur = self._execute_sql("DROP VIEW IF EXISTS %s" % view)
+                cur = self._execute_sql("DROP VIEW IF EXISTS %s" %
+                                        view.join(self.delimiters))
             self.cte_views = []
             for table in self.cte_tables:
-                cur = self._execute_sql("DROP table IF EXISTS %s" % table)
+                cur = self._execute_sql("DROP table IF EXISTS %s" %
+                                        table.join(self.delimiters))
             self.cte_tables = []
 
 
@@ -266,20 +272,23 @@ class baresql(object):
                         #get name of the cte view/table
                         if v_full != "":
                             #if "with X(...) as", we do create table +insert
-                            sqls.append("DROP TABLE IF EXISTS %s;\n" % v_name)
-                            sqls.append("create temp table %s;\n" % v_full)
+                            sqls.append("DROP TABLE IF EXISTS %s;\n" %
+                                        v_name.join(self.delimiters))
+                            sqls.append("create temp table %s;\n" %
+                                        v_full.join(self.delimiters))
                             #insert the cte in that table
-                            sqls.append("insert into  %s %s;\n" % (v_name
+                            sqls.append("insert into  %s %s;\n" %
+                                        (v_name.join(self.delimiters)
                                         ,  sql[cte_lp + 1:cte_rp]))
                             #mark the cte table for future deletion
                             self.cte_tables.insert (0 , v_name)
                         else:
                              if not cte_inline: #for "with X as (", create view
                                  sqls.append("DROP VIEW IF EXISTS %s;\n"
-                                      % v_name)
+                                      % v_name.join(self.delimiters))
                                  #add the cte as a view
                                  sqls.append("create temp view %s as %s;\n" % (
-                                      v_name , sql[cte_lp + 1:cte_rp]))
+                                      v_name.join(self.delimiters) , sql[cte_lp + 1:cte_rp]))
                                  #mark the cte view for future deletion
                                  self.cte_views.insert (0 , v_name)
                              else: #for "with X as (", create a dictionnary
@@ -365,9 +374,9 @@ class baresql(object):
             #dictionary case
             df = pd.DataFrame([(k,v) for k, v in obj.items()],
                                columns = ["c0","c1"])
-        elif isinstance(obj, (type('a'),type(u'a'))) or not hasattr(a, 'len') : 
+        elif isinstance(obj, (type('a'),type(u'a'))) or isinstance(obj, numbers.Number) : 
             #string or mono-thing
-            df = pd.DataFrame(list(obj), columns = ["c0"])
+            df = pd.DataFrame([obj,], columns = ["c0"])
 
         if not isinstance(df, pd.DataFrame) :
             raise Exception("%s is no Dataframe/Tuple/List/Dictionary" % name)
@@ -440,7 +449,7 @@ class baresql(object):
             df = names_env[table_ref]
             df = self._ensure_data_frame(df, table_ref)
             #destroy previous Python temp table before importing the new one
-            pre_q = "DROP TABLE IF EXISTS %s" % table_sql
+            pre_q = "DROP TABLE IF EXISTS %s" % table_sql.join(self.delimiters)
             cur = self._execute_sql (pre_q)
             self._write_table( table_sql, df, self.conn)
         #multiple sql must be executed one by one
