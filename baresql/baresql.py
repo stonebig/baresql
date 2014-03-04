@@ -437,7 +437,7 @@ class baresql(object):
         
         for table_ref in tables:
             table_sql = table_ref+"$$"
-            df = env[table_ref]
+            df = names_env[table_ref]
             df = self._ensure_data_frame(df, table_ref)
             #destroy previous Python temp table before importing the new one
             pre_q = "DROP TABLE IF EXISTS %s" % table_sql
