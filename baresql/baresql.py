@@ -216,7 +216,7 @@ class baresql(object):
             env_final = env[:-1] #remove last dict(), if parameters list
         if self.engine=="mysql" and isinstance(env, dict):
             #we must clean from what is not used
-            env_final={k:v for k,v in env_final.items() if "%("+k+")s" in sql}
+            env_final={k:v for k,v in env_final.items() if "%("+k+")s" in q_in}
         return execute(q_in ,self.conn, params = env_final)
 
 
