@@ -5,6 +5,27 @@ import numpy as np
 import pandas as pd
 from pandas.io.sql import write_frame, execute
 
+#see http://stackoverflow.com/questions/17053435/mysql-connector-python-insert-python-variable-to-mysql-table
+try:
+    import mysql.connector
+    #create numpy compatibility
+    class NumpyMySQLConverter(mysql.connector.conversion.MySQLConverter):
+        """ A mysql.connector Converter that handles Numpy types """
+
+        def _float32_to_mysql(self, value):
+            return float(value)
+
+        def _float64_to_mysql(self, value):
+            return float(value)
+
+        def _int32_to_mysql(self, value):
+            return int(value)
+
+        def _int64_to_mysql(self, value):
+            return int(value)
+except:
+    Pass
+
 class baresql(object):
     """
     baresql allows you to query in sql any of your python datas.
@@ -15,26 +36,30 @@ class baresql(object):
         . use '?'  for SQLite,
         . use '%s' for Mysql.
      - to refer to a  python 'toto' variable :
-        . use '$toto' in SQlite and it must be :
-           . in the dictionnary given as paramater,
-           . or in the dictionnary given as last element of the parameter list,
+        . it must be in the dictionnary given as parameter,
+        . use '$toto' in SQlite , '%(toto)s' in mysql,
      - to refer to a  python 'table' as if a SQL table 
-           . use 'table$$' in SQlite or Mysql,
-              . it must be in the dictionnary given as paramater,
-              . or it must be in the dictionnary given as last element of the parameter list,
+           . use 'table$$' in SQlite or Mysql, in the dictionnary given as parameter,
            . 'table' can be a list/array/dictionnary 
            . columns of 'table$$' will be table$$.c0...cN (unless pre-defined)
 
     example :
         #create the object
         from baresql import baresql 
-        bsql=baresql()
+        bsql=baresql() #default SQLite ":memory:" database
 
         user = [(i, "user N°"+str(i)) for i in range(7)]
         limit = 4 
         sql="select * from user$$ where c0 <= $limit"
 
-        bsql.df(sql,locals()) 
+        print(bsql.df(sql,locals()))
+
+        #same with mysql
+        import mysql.connector
+        cnx = mysql.connector.connect(**config)
+        bsql = baresql(cnx)
+        sql="select   * from user$$ where c0 <= %(limit)s"
+        print(bsql.df(sql,locals()))
 
     baresql re-use or re-implement parts of the code of 
        . github.com/yhat/pandasql (MIT licence, Copyright 2013 Yhat, Inc)
@@ -45,7 +70,7 @@ class baresql(object):
     def __init__(self, connection="sqlite://", keep_log = False, 
                  cte_inline = True):
         """
-        conn = connection string  , or connexion object is mysql
+        conn = connection string  , or connexion object if mysql
           example :
             "sqlite://" = sqlite in memory
             "sqlite:///.baresql.db" = sqlite on disk database ".baresql.db"
@@ -67,7 +92,7 @@ class baresql(object):
            #realize connexion
            self.conn = sqlite.connect(self.dbname, 
                                       detect_types = sqlite.PARSE_DECLTYPES)
-        else: #we suppose mysql case
+        else: #we suppose "mysql", if it is a connexion object
             self.conn=self.connection
             self.engine="mysql"
 
@@ -82,14 +107,17 @@ class baresql(object):
         self.do_log = keep_log
         self.log = []
 
-        #check if need cte_helper, and support named_parameters
+        #check if need cte_helper
         self.cte_helper = False
-        self.named_parameters = False
         
         if  self.engine == "mysql": #chock : mysql doesn't support C.T.E !
             self.cte_helper = True
+            #http://stackoverflow.com/questions/17053435/mysql-connector-python-insert-python-variable-to-mysql-table
+            try:
+                self.conn.set_converter_class(NumpyMySQLConverter)
+            except:
+                Pass
         if  self.engine == "sqlite":
-            self.named_parameters = True
             cur=execute("select  sqlite_version()" ,self.conn)
             version = cur.fetchall()[0][0]
             cur.close
@@ -184,11 +212,11 @@ class baresql(object):
         if self.do_log:
             self.log.append(q_in)
         env_final = env
-        if not self.named_parameters :
-            if isinstance(env, (dict , type(None))):
-                env_final = None #this motor doesn't support dict()
-            elif isinstance(env, (list,tuple)) and len(env)>0 and isinstance(env[-1], dict):
-                 env_final = env[:-1] #this motor doesn't support last dict()
+        if isinstance(env, (list,tuple)) and len(env)>0 and isinstance(env[-1], dict):
+            env_final = env[:-1] #remove last dict(), if parameters list
+        if self.engine=="mysql" and isinstance(env, dict):
+            #we must clean from what is not used
+            env_final={k:v for k,v in env_final.items() if "%("+k+")s" in sql}
         return execute(q_in ,self.conn, params = env_final)
 
 
@@ -363,7 +391,7 @@ class baresql(object):
         tables = set()
         for query in q.split("$$"):
             table_candidate = query.split(' ')[-1] 
-            if table_candidate in names_env:
+            if table_candidate in env:
                tables.add(table_candidate)
         self.tmp_tables = list(set(tables))
         return self.tmp_tables
@@ -403,7 +431,7 @@ class baresql(object):
         names_env = {} #ensure we use a dictionnary
         if isinstance(env, dict):
             names_env = env
-        elif isinstance(env, (list,tuple)) and len(env)>0 :
+        elif isinstance(env, (list,tuple)) and len(env)>0 and isinstance(env[-1], dict):
             names_env = env[-1]
         tables = self._extract_table_names(sql, names_env)
         
