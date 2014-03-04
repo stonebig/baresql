@@ -11,10 +11,19 @@ class baresql(object):
     
     in the sql :
  
-     - '$s' refers to the variable 's'
-     
-     - 'l$$' refers to the table created with the list/array/dictionnary 'l'
-            columns of 'l$$' will be l$$.c0 ... l$$.cN (unless pre-defined)
+     - to refer to the next element in a given list of parameter  :
+        . use '?'  for SQLite,
+        . use '%s' for Mysql.
+     - to refer to a  python 'toto' variable :
+        . use '$toto' in SQlite and it must be :
+           . in the dictionnary given as paramater,
+           . or in the dictionnary given as last element of the parameter list,
+     - to refer to a  python 'table' as if a SQL table 
+           . use 'table$$' in SQlite or Mysql,
+              . it must be in the dictionnary given as paramater,
+              . or it must be in the dictionnary given as last element of the parameter list,
+           . 'table' can be a list/array/dictionnary 
+           . columns of 'table$$' will be table$$.c0...cN (unless pre-defined)
 
     example :
         #create the object
@@ -36,26 +45,32 @@ class baresql(object):
     def __init__(self, connection="sqlite://", keep_log = False, 
                  cte_inline = True):
         """
-        conn = connection string  
-        example :
-        "sqlite://" = sqlite in memory
-        "sqlite:///.baresql.db" = sqlite on disk database ".baresql.db"
+        conn = connection string  , or connexion object is mysql
+          example :
+            "sqlite://" = sqlite in memory
+            "sqlite:///.baresql.db" = sqlite on disk database ".baresql.db"
+        keep_log = keep log of SQL instructions generated
         cte_inline = inline CTE for SQLite instead of creating temporary views
         """
         #identify sql engine and database
         self.connection = connection
-        self.engine = connection.split("://")[0]
-        if self.engine == "sqlite" or self.engine == "mysql":
-            self.dbname = "/".join(((connection+"").split("/")[3:]))
-            if  self.dbname.strip() == "":
-               self.dbname = ":memory:"
-        else:
-            print (self.engine)
-            raise Exception("Only sqlite and mysql are supported yet") 
+        if isinstance(self.connection, (type(u'a') , type('a'))):
+           self.engine = connection.split("://")[0]
+           if self.engine == "sqlite" or self.engine == "mysql":
+              self.dbname = "/".join(((connection+"").split("/")[3:]))
+              if  self.dbname.strip() == "":
+                  self.dbname = ":memory:"
+           else:
+               print (self.engine)
+               raise Exception("Only sqlite and mysql are supported yet") 
 
-        #realize connexion
-        self.conn = sqlite.connect(self.dbname, 
-                                   detect_types = sqlite.PARSE_DECLTYPES)
+           #realize connexion
+           self.conn = sqlite.connect(self.dbname, 
+                                      detect_types = sqlite.PARSE_DECLTYPES)
+        else: #we suppose mysql case
+            self.conn=self.connection
+            self.engine="mysql"
+
         self.tmp_tables = []
 
         #SQLite CTE translation infrastructure
@@ -67,9 +82,14 @@ class baresql(object):
         self.do_log = keep_log
         self.log = []
 
-        #check if need cte_helper
+        #check if need cte_helper, and support named_parameters
         self.cte_helper = False
+        self.named_parameters = False
+        
+        if  self.engine == "mysql": #chock : mysql doesn't support C.T.E !
+            self.cte_helper = True
         if  self.engine == "sqlite":
+            self.named_parameters = True
             cur=execute("select  sqlite_version()" ,self.conn)
             version = cur.fetchall()[0][0]
             cur.close
@@ -87,15 +107,15 @@ class baresql(object):
         "remove temporarly created tables"
         if origin in ("all", "tmp"):
             for table in self.tmp_tables:
-                cur = self._execute_sql("DROP TABLE IF EXISTS [%s]" % table)
+                cur = self._execute_sql("DROP TABLE IF EXISTS %s" % table)
             self.tmp_tables = []
             
         if origin in("all", "cte"):
             for view in self.cte_views:
-                cur = self._execute_sql("DROP VIEW IF EXISTS [%s]" % view)
+                cur = self._execute_sql("DROP VIEW IF EXISTS %s" % view)
             self.cte_views = []
             for table in self.cte_tables:
-                cur = self._execute_sql("DROP table IF EXISTS [%s]" % table)
+                cur = self._execute_sql("DROP table IF EXISTS %s" % table)
             self.cte_tables = []
 
 
@@ -163,7 +183,13 @@ class baresql(object):
         "execute sql but intercept log"
         if self.do_log:
             self.log.append(q_in)
-        return execute(q_in ,self.conn, params=env)
+        env_final = env
+        if not self.named_parameters :
+            if isinstance(env, (dict , type(None))):
+                env_final = None #this motor doesn't support dict()
+            elif isinstance(env, (list,tuple)) and len(env)>0 and isinstance(env[-1], dict):
+                 env_final = env[:-1] #this motor doesn't support last dict()
+        return execute(q_in ,self.conn, params = env_final)
 
 
     def _split_sql_cte(self, sql, cte_inline = True):
@@ -311,6 +337,9 @@ class baresql(object):
             #dictionary case
             df = pd.DataFrame([(k,v) for k, v in obj.items()],
                                columns = ["c0","c1"])
+        elif isinstance(obj, (type('a'),type(u'a'))) or not hasattr(a, 'len') : 
+            #string or mono-thing
+            df = pd.DataFrame(list(obj), columns = ["c0"])
 
         if not isinstance(df, pd.DataFrame) :
             raise Exception("%s is no Dataframe/Tuple/List/Dictionary" % name)
@@ -327,13 +356,14 @@ class baresql(object):
         extracts table names from a sql query whose :
             - name if postfixed by $$,
             - name is found in given 'env' environnement
-        example : "select * from a$$, b$$, a$$" may return ['a', 'b']
+        example :
+             - python variable is x=['a','b']
+             - "select * from x$$" may return ['a', 'b']
         """
         tables = set()
-        next_is_table = False
         for query in q.split("$$"):
             table_candidate = query.split(' ')[-1] 
-            if table_candidate in env:
+            if table_candidate in names_env:
                tables.add(table_candidate)
         self.tmp_tables = list(set(tables))
         return self.tmp_tables
@@ -347,11 +377,11 @@ class baresql(object):
                 msg += "http://www.sqlite.org/lang_keywords.html"
                 raise Exception(msg)
         if self.do_log:
-            self.log.append("(pandas) create table [%s] ..." % tablename)  
+            self.log.append("(pandas) create table  %s  ..." % tablename)  
             cards = ','.join(['?'] * len(df.columns))
-            self.log.append("(pandas) INSERT INTO [%s] VALUES (%s)"
+            self.log.append("(pandas) INSERT INTO  %s  VALUES (%s)"
                  % (tablename , cards))        
-        write_frame(df, name = tablename, con = self.conn, flavor = 'sqlite')
+        write_frame(df, name = tablename, con = self.conn,  flavor = self.engine)
 
 
     def cursor(self, q, env):
@@ -369,15 +399,21 @@ class baresql(object):
         self.remove_tmp_tables # remove temp objects created for previous sql
         sql = "".join(self.get_sqlsplit(q, True)) #remove comments from the sql 
         
-        #importation of needed Python tables into SQl
-        tables = self._extract_table_names(sql, env)
+        #importation of needed Python tables into SQL
+        names_env = {} #ensure we use a dictionnary
+        if isinstance(env, dict):
+            names_env = env
+        elif isinstance(env, (list,tuple)) and len(env)>0 :
+            names_env = env[-1]
+        tables = self._extract_table_names(sql, names_env)
+        
         for table_ref in tables:
             table_sql = table_ref+"$$"
             df = env[table_ref]
             df = self._ensure_data_frame(df, table_ref)
             #destroy previous Python temp table before importing the new one
-            pre_q = "DROP TABLE IF EXISTS [%s]" % table_sql
-            cur = self._execute_sql (pre_q, env)
+            pre_q = "DROP TABLE IF EXISTS %s" % table_sql
+            cur = self._execute_sql (pre_q)
             self._write_table( table_sql, df, self.conn)
         #multiple sql must be executed one by one
         for q_single in self.get_sqlsplit(sql, True) :
