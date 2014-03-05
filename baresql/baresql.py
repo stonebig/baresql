@@ -31,36 +31,43 @@ class baresql(object):
     """
     baresql allows you to query in sql any of your python datas.
     
-    in the sql :
- 
-     - to refer to the next element in a given list of parameter  :
-        . use '?'  for SQLite,
-        . use '%s' for Mysql.
-     - to refer to a  python 'toto' variable :
-        . it must be in the dictionnary given as parameter,
-        . use '$toto' in SQlite , '%(toto)s' in mysql,
-     - to refer to a  python 'table' as if a SQL table 
-           . use 'table$$' in SQlite or Mysql, in the dictionnary given as parameter,
-           . 'table' can be a list/array/dictionnary 
-           . columns of 'table$$' will be table$$.c0...cN (unless pre-defined)
+    In the sql :
+     - use 'table$$' to refer to a  python 'table',
+     - use 'table$$.c0' ..'table$$.cN' to access column0..N of 'tables$$'
+     - use ':variable' to refer to a  python 'variable',
+          ('%(variable)s' if you employ mysql)
 
-    example :
-        #create the object
+    Typical syntax : "select * from users$$ where users$$.c0 <= :limit" 
+
+    Output of a query can be obtained as :
+     - a pandas dataframe (bsql.df)
+     - a list of rows (bsql.rows)
+     - a list of 1 column (bsql.column) (first column by default)
+     - a sql cursor (bsql.cursor) (not recommanded)
+
+    Complementary features :
+     - multiple sql actions can be executed in the same request,
+     - a basic 'Common Table Expression' converter is included,
+     - mixing sql tables and python tables in a sql request.
+
+    Example :
+        #initialisation
         from baresql import baresql 
-        bsql=baresql() #default SQLite ":memory:" database
+        bsql=baresql()  
+        bsqldf = lambda q: bsql.df(q, dict(globals(),**locals()))
 
-        user = [(i, "user N°"+str(i)) for i in range(7)]
+        #create some python datas
+        users = [(i, "user N°"+str(i)) for i in range(7)]
         limit = 4 
-        sql="select * from user$$ where c0 <= $limit"
 
-        print(bsql.df(sql,locals()))
+        #sql query on those datas
+        print(bsqldf("select * from users$$ where c0 <= :limit"))
 
-        #same with mysql
-        import mysql.connector
+        #same with a mysql server
         cnx = mysql.connector.connect(**config)
         bsql = baresql(cnx)
-        sql="select   * from user$$ where c0 <= %(limit)s"
-        print(bsql.df(sql,locals()))
+
+        print(bsqldf("select   * from users$$ where c0 <= %(limit)s"))
 
     baresql re-use or re-implement parts of the code of 
        . github.com/yhat/pandasql (MIT licence, Copyright 2013 Yhat, Inc)
@@ -428,8 +435,8 @@ class baresql(object):
             $x refering to a variable 'x' defined in the dictionnary
             x$$ refering to a table created with the variable 'x'   
         env: dictionnary of variables available to the sql instructions
-             locals() and globals() are your python local/global variables
-             dict(globals(),**locals()) is the default python view of variables
+             either manual : {'users':users,'limit':limit}
+             otherwise the default suggested is : dict(globals(),**locals())  
         """
 
         #initial cleanup 
