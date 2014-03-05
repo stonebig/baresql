@@ -25,8 +25,9 @@ To Do :
 -------
 
  * ~~extending python sql motor with a basic CTE (Common Table Expression),~~
+ * ~~allowing mysql database (via pandas 0.11+)~~
+ * allowing other databases (via pandas 0.14+ and sqlalchemy)
  * Travis-CI infrastructure
- * allowing other databases (via pyqt ? pandas patches ? sqlalchemy ?)
 
 Help is welcome.
 
@@ -46,5 +47,6 @@ Version :
  * 0.4.1 : inline CTE when syntax is "with x as (y)"
  * 0.5 : use SQLite true CTE if SQLite >= 3.8.3
  * 0.5.1 : bug correction + SQLite3.8.3 beta from 2013-01-22
- * 0.6 dev : experiment with Travis-CI
- * 0.7 futur : have another sql motor working in python3 + windows
+ * 0.6 : first version with correct mysql support
+ * 0.7dev : support of pandas 0.14 sqlalchemy
+ * 
