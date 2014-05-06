@@ -65,7 +65,7 @@ class sqltrees():
         welcome_text = """-- Welcome Frame (with a small memo)
 --       CREATE a table  
 create table items  (ItemNo, Description,Kg);
-create table product(ItemNo TEXT PRIMARY KEY,Description TEXT ,Kg NUMERIC);
+create table products(ItemNo TEXT PRIMARY KEY,Description TEXT ,Kg NUMERIC);
 --       CREATE an index 
 CREATE INDEX items_id1 ON items(ItemNo ASC, Kg Desc);
 --       CREATE a view 
@@ -85,7 +85,8 @@ select mysqrt(3), sqlite_version();
 
 
         #Create first Welcome tab  
-        self.column_treeview(welcome_frame, welcome_text,welcome_columns, welcome_data)
+        self.column_treeview(welcome_frame, welcome_text,
+                             welcome_columns, welcome_data)
 
         ##grid widgets
         self.notebook.grid(row=0, column=0, sticky=(N,W,S,E))
@@ -108,7 +109,7 @@ select mysqrt(3), sqlite_version();
         f1.grid_columnconfigure(0, weight=1)
         f1.grid_rowconfigure(0, weight=1) 
         #f1.grid(column=0, row=0, sticky='nsew', in_=fw_welcome )
-        #Create a top text box on this new frame, with 'query' definition inside
+        #Create a top text box on this new frame, with 'query' definition in it
         #    padding=(10, 2, 10, 6), text=(query))
         fw_label = ttk.tkinter.Text(f1 ,bd =1)
         
@@ -160,7 +161,8 @@ select mysqrt(3), sqlite_version();
         if type(data)==type('ee'):
             data=[data]
         #data=queries
-        fw_Box = Treeview(f2, columns=tree_columns, show="headings", padding=(2, 2, 2,2))
+        fw_Box = Treeview(f2, columns=tree_columns, show="headings",
+                          padding=(2, 2, 2,2))
         fw_vsb = Scrollbar(f2, orient="vertical", command=fw_Box.yview)
         fw_hsb = Scrollbar(f2, orient="horizontal", command=fw_Box.xview)
         fw_Box.configure(yscrollcommand=fw_vsb.set, xscrollcommand=fw_hsb.set)
@@ -168,11 +170,12 @@ select mysqrt(3), sqlite_version();
         fw_vsb.grid(column=1, row=1, sticky='ns', in_=f2)
         fw_hsb.grid(column=0, row=2, sticky='new', in_=f2)
 
-        #This new Treeview , which is on row 1 of the new Frame , will occupy all variable space
+        #This new Treeview , which is on row 1 of the new Frame , 
+        #will occupy all variable space
         f2_row = (1+len(self.fw_results[working_tab_id]))
         #f2.grid(column=0, row=f2_row, sticky='nsew' , in_=fw_welcome )
         f2.grid_columnconfigure(0, weight=1)
-        f2.grid_rowconfigure((1+len(self.fw_results[working_tab_id])), weight=1) 
+        f2.grid_rowconfigure(f2_row, weight=1) 
         #f2.pack(side =SOUTH, expand =YES, fill =BOTH, padx =2, pady =2)
 
         #feed list
@@ -199,7 +202,8 @@ select mysqrt(3), sqlite_version();
                 try :
                     ilen = font.Font().measure(val)
                 
-                    if fw_Box.column(tree_columns[indx], width=None) < ilen and ilen<400 :
+                    if fw_Box.column(tree_columns[indx], width=None
+                        ) < ilen and ilen<400 :
                         fw_Box.column(tree_columns[indx], width=ilen)
                 except:
                     pass
@@ -363,7 +367,7 @@ def create_and_add_results(instructions, tab_tk_id):
             pass
         
         #end of one sql
-        if cur.description != None :#rows!=[]  :
+        if rowtitles != ("#N/A",) :#rows!=[]  :
               n.add_treeview(tab_object, rowtitles, rows )
 
 def del_tabresult():
@@ -757,28 +761,29 @@ if __name__ == '__main__':
     menu_file.add_separator()
     menu_file.add_command(label='Attach Database', command=attach_db)   
     #menu_file.add_command(label='Detach Database', command=detach_db)   
-    menu_file.add_separator()
-    menu_file.add_command(label='Copy Database', command=copy_db)   
-    menu_file.add_separator()
-    menu_file.add_command(label='Export All Tables', command=export_tb)   
-    menu_file.add_command(label='Export Database', command=export_db)   
-    menu_file.add_command(label='Export Database Structure', command=export_st)   
-    menu_file.add_command(label='Import CSV table (with header)', command=import_csvtb)   
+    #menu_file.add_separator()
+    #menu_file.add_command(label='Copy Database', command=copy_db)   
+    #menu_file.add_separator()
+    #menu_file.add_command(label='Export All Tables', command=export_tb)   
+    #menu_file.add_command(label='Export Database', command=export_db)   
+    #menu_file.add_command(label='Export Database Structure', command=export_st)   
     menu_file.add_separator()
     menu_file.add_command(label='Actualize', command=actualize_db)   
     menu_file.add_separator()
     menu_file.add_command(label='Quit', command=quit_db)   
 
     #creating table menu
-    menu_table.add_command(label='Create a Table', command=create_tb)
-    menu_table.add_command(label='Delete a Table', command=delete_tb)
-    menu_table.add_command(label='Clear a Table', command=clear_tb)   
-    menu_table.add_separator()
-    menu_table.add_command(label='Rename a Table', command=rename_tb)
-    menu_table.add_command(label='Copy a Table', command=copy_tb)
-    menu_table.add_command(label='Export a Table', command=export_tb)   
-    menu_table.add_separator()
-    menu_table.add_command(label='Rebuild a Table', command=rebuild_tb)   
+    #menu_table.add_command(label='Create a Table', command=create_tb)
+    #menu_table.add_command(label='Delete a Table', command=delete_tb)
+    #menu_table.add_command(label='Clear a Table', command=clear_tb)   
+    #menu_table.add_separator()
+    menu_table.add_command(label='Import CSV table (with header)',
+                           command=import_csvtb)   
+    #menu_table.add_command(label='Rename a Table', command=rename_tb)
+    #menu_table.add_command(label='Copy a Table', command=copy_tb)
+    #menu_table.add_command(label='Export a Table', command=export_tb)   
+    #menu_table.add_separator()
+    #menu_table.add_command(label='Rebuild a Table', command=rebuild_tb)   
 
 
     #create a paned window with two panels
@@ -868,10 +873,10 @@ zJnV/5n/AJn/M5n/Zpn/mZn/zJn//8wAAMwAM8wAZswAmcwAzMwA/8wrAMwrM8wrZswrmcwrzMwr
 AMzVM8zVZszVmczVzMzV/8z/AMz/M8z/Zsz/mcz/zMz///8AAP8AM/8AZv8Amf8AzP8A//8rAP8r
 M/8rZv8rmf8rzP8r//9VAP9VM/9VZv9Vmf9VzP9V//+AAP+AM/+AZv+Amf+AzP+A//+qAP+qM/+q
 Zv+qmf+qzP+q///VAP/VM//VZv/Vmf/VzP/V////AP//M///Zv//mf//zP///wAAAAAAAAAAAAAA
-AAiyAPcJHEiwoMGDAvUVVJgQoUOGDhGWI1fOIEVyEQWW24hx4MZy3jJq5CjQ28SN+yDuSzNpEsuX
-FMt9i7lRZcaTHMulEUnw48l9Llu+nOTwIkqgyoglXSrxI0WBaZQq/aT0oFGnSKkuJWbQZ0Wak7Yq
-y6TM4k+NMclqTdr1qEeKUpVp5bnvo1hin+hCxTuWqd6wcanqRYo37uCoypLO/UuWrF+6gJeSHTxJ
-ad+qetNcTkwsIAA7
+AAjFAJURE0hwn8GDCBMaJJZwoEOCDhXu+5RQWaaDFjFKZIgwk8BPxEBazKhQWUWPD1NCFMjx4ECJ
+MD9RRAgS5saWC03arKgT48WdCInh3PcS6EGZJ0d6XKp0pNCGysqVA1qOnLKeBmvuk0puqkGuXp8G
+xfq1a0myAg12Nfu1atihINnarHoV6kqVKYcq0zRSUzJioIYFBhUScN2xcmFWFXvwb1mvB90aVJYs
+Id+EXSUH1TsULOTJZD0+TqhZKOG/V4kllthVWUAAOw==
 '''
 
     #refresh_button
@@ -901,7 +906,7 @@ ad+qetNcTkwsIAA7
 
     #dell_tabresult_button
     deltabresult_image = ttk.tkinter.PhotoImage(data=deltabresult_img)
-    deltabresultButton = Button(toolbar, image=deltab_image ,
+    deltabresultButton = Button(toolbar, image=deltabresult_image ,
             command=del_tabresult)
     deltabresultButton.image = deltabresult_image
     deltabresultButton.pack(side=LEFT, padx=2, pady=2)
@@ -941,5 +946,6 @@ ad+qetNcTkwsIAA7
 
     #show_result
     database_file ="(none)"
+    new_db_mem()
     root.mainloop()
 
