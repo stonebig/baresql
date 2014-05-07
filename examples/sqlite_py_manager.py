@@ -95,7 +95,7 @@ select mysqrt(3), sqlite_version();
         #Add a new frame named 'title' to the notebook 
 
         #pfg fw_welcome = Frame(self.notebook)
-        fw_welcome = ttk.Panedwindow(win, orient=VERTICAL)
+        fw_welcome = ttk.Panedwindow(tk_win, orient=VERTICAL)
         
 
         fw_welcome.pack(fill = 'both', expand=True)
@@ -471,7 +471,7 @@ def import_csvtb_ok(thetop, entries):
 def import_csvtb():
    """import a csv table with header"""
    global conn
-   global win
+   global tk_win
    import sqlite3 as sqlite 
    csv_file = filedialog.askopenfilename(defaultextension='.db',
               title="Choose a csv file (with header) to import ",
@@ -719,39 +719,33 @@ class baresql():
         #F/baresql token editor
 
 if __name__ == '__main__':
-    global win
-    # add tkk graphic presentation 
-    root = Tk()
+
+    global tk_win
+    # create a tkk graphic interface
+    # with menu, toolbar, left 'Database' Frame, right 'Queries' Notebook 
+
+    #create main window tk_win
+    tk_win = Tk()
+    tk_win.title('sqlite python browser') # window Title
+    tk_win.option_add('*tearOff', FALSE)  # recommanded by tk documentation
+    tk_win.minsize(600,200)               # minimal size
     
+    #creating the menu object
+    menubar = Menu(tk_win)
+    tk_win['menu'] = menubar
     
-    root.title('gui_sqlite_in_python')
-    # recommanded action
-    root.option_add('*tearOff', FALSE)
-    
-    #create top window
-    #win = Toplevel(root)
-    win = root
-    #minimal size
-    win.minsize(600,200)
-    
-    #adding a menu
-    menubar = Menu(win)
-    win['menu'] = menubar
-    
-    #creating menu
+    #feeding the top level menu
     menu_file = Menu(menubar)
-    menu_table = Menu(menubar)
-    menu_index = Menu(menubar)
-    menu_view = Menu(menubar)
-    menu_trigger = Menu(menubar)
-    menu_tools = Menu(menubar)
-    menu_help = Menu(menubar)
-    menu_run = Menu(menubar)
     menubar.add_cascade(menu=menu_file, label='Database')
+
+    menu_table = Menu(menubar)
     menubar.add_cascade(menu=menu_table, label='Table')
+
+    menu_tools = Menu(menubar)
     menubar.add_cascade(menu=menu_tools, label='Tools')
-    menubar.add_cascade(menu=menu_help, label='Help')
-    menubar.add_cascade(menu=menu_run, label='!', command=new_db)
+
+    menu_help = Menu(menubar)
+    menubar.add_cascade(menu=menu_help, label='?')
 
     #creating database menu
     menu_file.add_command(label='New Database', command=new_db)
@@ -790,7 +784,7 @@ if __name__ == '__main__':
     #content = ttk.Frame(win)
  
     #Toolbar
-    toolbar = Frame(win,   relief=RAISED)
+    toolbar = Frame(tk_win,   relief=RAISED)
     #my icon
     import base64
     #gif_file = r"C:\Users\famille\Documents\winpython\stonebig_directory\$$sqlite_py_manager\pysql.gif"
@@ -914,38 +908,29 @@ Id+EXSUH1TsULOTJZD0+TqhZKOG/V4kllthVWUAAOw==
        
     toolbar.pack(side=TOP, fill=X)
 
-    #content.grid(column=0, row=0)
-    p  = ttk.Panedwindow(win, orient=HORIZONTAL)
+    #create a paned window 'p' that contains 2 frames : 'Database', 'Queries'
+    # 'p' layout is managed by pack()
+    p  = ttk.Panedwindow(tk_win, orient=HORIZONTAL)
     p.pack(fill=BOTH, expand=1)
-    #left = Label(p, text="left pane")
-    #p.add(left)
 
-    m2 = PanedWindow(p, orient=VERTICAL)
-    p.add(m2)
-    f1 = ttk.Labelframe(p, text='Databases', width=200, height=100)
-    f2 = ttk.Labelframe(p, text='Features', width=200, height=100); # second pane
-    p.add(f1)
-    p.add(f2)
-    #build tree view on left
-    t = ttk.Treeview(f1 , displaycolumns =[],columns =("detail"))
-    ##t.column("detail",width=75,anchor="center" )
-    ##t.column("type",width=100)
-    ##t.heading("detail",text="detail")
-    ##t.heading("type",text="type")
+    f_database = ttk.Labelframe(p, text='Databases', width=200 , height=100)
+    p.add(f_database)
+
+    f_queries = ttk.Labelframe(p, text='Queries', width=200, height=100)
+    p.add(f_queries)
+    
+    #build tree view 't' inside the left 'Database' Frame
+    t = ttk.Treeview(f_database , displaycolumns = [], columns = ("detail"))
+
+    #create a  notebook 'n' inside the right 'Queries' Frame
+    n = sqltrees(f_queries , [])
+
     t.tag_configure("ttk")
-    t.pack(fill=BOTH, expand=1)
+    t.pack(fill = BOTH , expand = 1)
  
-    #create default notebook on the right
-    #n = ttk.Notebook(f2)
-    n=sqltrees(f2,[])
-    #pfg n.grid(row=0, column=0, sticky=(N,W,S,E))
 
-
-    #show list_of_queries
-    #app=sqltrees(root,examples.splitlines())
-
-    #show_result
-    database_file ="(none)"
+    #Start with a memory Database
     new_db_mem()
-    root.mainloop()
+    
+    tk_win.mainloop()
 
