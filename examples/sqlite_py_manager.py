@@ -16,7 +16,6 @@ from tkinter import messagebox
 
 global database_file
 global conn 
-global souvenir
 
 #********* start of tkk part ***********
 # applied from tkk presentation of Jeff Armstrong at PyOhio july 2012 :
@@ -208,7 +207,103 @@ select mysqrt(3), sqlite_version();
                 except:
                     pass
          
+def get_tk_icons():
+    "gives back the image of the whished icon "
 
+    #Inlined base 64 icons are created via the following procedure
+    # 1-create a toto.gif image of 24x24 size (for this example)
+    # 2-apply this transformation step : 
+    #    import base64
+    #    gif_file = r"C:\Users\...\gif_file.gif"
+    #    b64 = base64.encodestring(open(gif_file,"rb").read())
+    #    print('gif_img':'''\\\n" + b64.decode("utf8") + "'''")
+    # 3-copy/paste the result in the code of your program as below
+
+    icons = {'run_img':'''\
+R0lGODlhEQARAHAAACH5BAEAAPwALAAAAAARABEAhwAAAAAAMwAAZgAAmQAAzAAA/wArAAArMwAr
+ZgArmQArzAAr/wBVAABVMwBVZgBVmQBVzABV/wCAAACAMwCAZgCAmQCAzACA/wCqAACqMwCqZgCq
+mQCqzACq/wDVAADVMwDVZgDVmQDVzADV/wD/AAD/MwD/ZgD/mQD/zAD//zMAADMAMzMAZjMAmTMA
+zDMA/zMrADMrMzMrZjMrmTMrzDMr/zNVADNVMzNVZjNVmTNVzDNV/zOAADOAMzOAZjOAmTOAzDOA
+/zOqADOqMzOqZjOqmTOqzDOq/zPVADPVMzPVZjPVmTPVzDPV/zP/ADP/MzP/ZjP/mTP/zDP//2YA
+AGYAM2YAZmYAmWYAzGYA/2YrAGYrM2YrZmYrmWYrzGYr/2ZVAGZVM2ZVZmZVmWZVzGZV/2aAAGaA
+M2aAZmaAmWaAzGaA/2aqAGaqM2aqZmaqmWaqzGaq/2bVAGbVM2bVZmbVmWbVzGbV/2b/AGb/M2b/
+Zmb/mWb/zGb//5kAAJkAM5kAZpkAmZkAzJkA/5krAJkrM5krZpkrmZkrzJkr/5lVAJlVM5lVZplV
+mZlVzJlV/5mAAJmAM5mAZpmAmZmAzJmA/5mqAJmqM5mqZpmqmZmqzJmq/5nVAJnVM5nVZpnVmZnV
+zJnV/5n/AJn/M5n/Zpn/mZn/zJn//8wAAMwAM8wAZswAmcwAzMwA/8wrAMwrM8wrZswrmcwrzMwr
+/8xVAMxVM8xVZsxVmcxVzMxV/8yAAMyAM8yAZsyAmcyAzMyA/8yqAMyqM8yqZsyqmcyqzMyq/8zV
+AMzVM8zVZszVmczVzMzV/8z/AMz/M8z/Zsz/mcz/zMz///8AAP8AM/8AZv8Amf8AzP8A//8rAP8r
+M/8rZv8rmf8rzP8r//9VAP9VM/9VZv9Vmf9VzP9V//+AAP+AM/+AZv+Amf+AzP+A//+qAP+qM/+q
+Zv+qmf+qzP+q///VAP/VM//VZv/Vmf/VzP/V////AP//M///Zv//mf//zP///wAAAAAAAAAAAAAA
+AAigAPcJHEiwoEGBQ9oMGXKQYEJo+iDyYHhwSERlnugkg6aMh8E2yqB58jTHUyeN0HoUtEiSlKd9
+dObMUWbDob5SI0kKpNPGE7SaAntAwzTH4Jw2pW4MPAOt5Mc5n4Du4wHt05yYRfe1SUJHGQOCQo/y
+1DpnSDKpAm1UPXo0SZtPpWIYtLHR05A5bkol+3rQRoNkeuPybbivAYwGaAkrXnwwIAA7
+''' 
+    ,'refresh_img':'''\
+R0lGODlhEQARAHAAACH5BAEAAPwALAAAAAARABEAhwAAAAAAMwAAZgAAmQAAzAAA/wArAAArMwAr
+ZgArmQArzAAr/wBVAABVMwBVZgBVmQBVzABV/wCAAACAMwCAZgCAmQCAzACA/wCqAACqMwCqZgCq
+mQCqzACq/wDVAADVMwDVZgDVmQDVzADV/wD/AAD/MwD/ZgD/mQD/zAD//zMAADMAMzMAZjMAmTMA
+zDMA/zMrADMrMzMrZjMrmTMrzDMr/zNVADNVMzNVZjNVmTNVzDNV/zOAADOAMzOAZjOAmTOAzDOA
+/zOqADOqMzOqZjOqmTOqzDOq/zPVADPVMzPVZjPVmTPVzDPV/zP/ADP/MzP/ZjP/mTP/zDP//2YA
+AGYAM2YAZmYAmWYAzGYA/2YrAGYrM2YrZmYrmWYrzGYr/2ZVAGZVM2ZVZmZVmWZVzGZV/2aAAGaA
+M2aAZmaAmWaAzGaA/2aqAGaqM2aqZmaqmWaqzGaq/2bVAGbVM2bVZmbVmWbVzGbV/2b/AGb/M2b/
+Zmb/mWb/zGb//5kAAJkAM5kAZpkAmZkAzJkA/5krAJkrM5krZpkrmZkrzJkr/5lVAJlVM5lVZplV
+mZlVzJlV/5mAAJmAM5mAZpmAmZmAzJmA/5mqAJmqM5mqZpmqmZmqzJmq/5nVAJnVM5nVZpnVmZnV
+zJnV/5n/AJn/M5n/Zpn/mZn/zJn//8wAAMwAM8wAZswAmcwAzMwA/8wrAMwrM8wrZswrmcwrzMwr
+/8xVAMxVM8xVZsxVmcxVzMxV/8yAAMyAM8yAZsyAmcyAzMyA/8yqAMyqM8yqZsyqmcyqzMyq/8zV
+AMzVM8zVZszVmczVzMzV/8z/AMz/M8z/Zsz/mcz/zMz///8AAP8AM/8AZv8Amf8AzP8A//8rAP8r
+M/8rZv8rmf8rzP8r//9VAP9VM/9VZv9Vmf9VzP9V//+AAP+AM/+AZv+Amf+AzP+A//+qAP+qM/+q
+Zv+qmf+qzP+q///VAP/VM//VZv/Vmf/VzP/V////AP//M///Zv//mf//zP///wAAAAAAAAAAAAAA
+AAifAAEIHLiv4D6BBREORPjjR44fBSEqHBgtRzRl0aIBsZPjIACPH3FEgxPKiJFQyyx4XJkDDo4c
+OUAdOQlkJUIfEAs+CMVT5cR9HT8+/AHEQk2FBpMqtbnPKBAIPx4cBApyKpBQp0Ll3PcDR9WPV40c
+AZWjAg5NQZFW4GkyFKhQDkB+/KhD04+3msgmJPgxp8OGcpGuNLiQb+HDC5cqVhoQADs=
+'''
+    ,'deltab_img':'''\
+R0lGODlhGAAYAHAAACH5BAEAAPwALAAAAAAYABgAhwAAAAAAMwAAZgAAmQAAzAAA/wArAAArMwAr
+ZgArmQArzAAr/wBVAABVMwBVZgBVmQBVzABV/wCAAACAMwCAZgCAmQCAzACA/wCqAACqMwCqZgCq
+mQCqzACq/wDVAADVMwDVZgDVmQDVzADV/wD/AAD/MwD/ZgD/mQD/zAD//zMAADMAMzMAZjMAmTMA
+zDMA/zMrADMrMzMrZjMrmTMrzDMr/zNVADNVMzNVZjNVmTNVzDNV/zOAADOAMzOAZjOAmTOAzDOA
+/zOqADOqMzOqZjOqmTOqzDOq/zPVADPVMzPVZjPVmTPVzDPV/zP/ADP/MzP/ZjP/mTP/zDP//2YA
+AGYAM2YAZmYAmWYAzGYA/2YrAGYrM2YrZmYrmWYrzGYr/2ZVAGZVM2ZVZmZVmWZVzGZV/2aAAGaA
+M2aAZmaAmWaAzGaA/2aqAGaqM2aqZmaqmWaqzGaq/2bVAGbVM2bVZmbVmWbVzGbV/2b/AGb/M2b/
+Zmb/mWb/zGb//5kAAJkAM5kAZpkAmZkAzJkA/5krAJkrM5krZpkrmZkrzJkr/5lVAJlVM5lVZplV
+mZlVzJlV/5mAAJmAM5mAZpmAmZmAzJmA/5mqAJmqM5mqZpmqmZmqzJmq/5nVAJnVM5nVZpnVmZnV
+zJnV/5n/AJn/M5n/Zpn/mZn/zJn//8wAAMwAM8wAZswAmcwAzMwA/8wrAMwrM8wrZswrmcwrzMwr
+/8xVAMxVM8xVZsxVmcxVzMxV/8yAAMyAM8yAZsyAmcyAzMyA/8yqAMyqM8yqZsyqmcyqzMyq/8zV
+AMzVM8zVZszVmczVzMzV/8z/AMz/M8z/Zsz/mcz/zMz///8AAP8AM/8AZv8Amf8AzP8A//8rAP8r
+M/8rZv8rmf8rzP8r//9VAP9VM/9VZv9Vmf9VzP9V//+AAP+AM/+AZv+Amf+AzP+A//+qAP+qM/+q
+Zv+qmf+qzP+q///VAP/VM//VZv/Vmf/VzP/V////AP//M///Zv//mf//zP///wAAAAAAAAAAAAAA
+AAiyAPcJHEiwoMGDAvUVVJgQoUOGDhGWI1fOIEVyEQWW24hx4MZy3jJq5CjQ28SN+yDuSzNpEsuX
+FMt9i7lRZcaTHMulEUnw48l9Llu+nOTwIkqgyoglXSrxI0WBaZQq/aT0oFGnSKkuJWbQZ0Wak7Yq
+y6TM4k+NMclqTdr1qEeKUpVp5bnvo1hin+hCxTuWqd6wcanqRYo37uCoypLO/UuWrF+6gJeSHTxJ
+ad+qetNcTkwsIAA7
+'''
+    ,'deltabresult_img':'''\
+R0lGODlhGAAYAHAAACH5BAEAAPwALAAAAAAYABgAhwAAAAAAMwAAZgAAmQAAzAAA/wArAAArMwAr
+ZgArmQArzAAr/wBVAABVMwBVZgBVmQBVzABV/wCAAACAMwCAZgCAmQCAzACA/wCqAACqMwCqZgCq
+mQCqzACq/wDVAADVMwDVZgDVmQDVzADV/wD/AAD/MwD/ZgD/mQD/zAD//zMAADMAMzMAZjMAmTMA
+zDMA/zMrADMrMzMrZjMrmTMrzDMr/zNVADNVMzNVZjNVmTNVzDNV/zOAADOAMzOAZjOAmTOAzDOA
+/zOqADOqMzOqZjOqmTOqzDOq/zPVADPVMzPVZjPVmTPVzDPV/zP/ADP/MzP/ZjP/mTP/zDP//2YA
+AGYAM2YAZmYAmWYAzGYA/2YrAGYrM2YrZmYrmWYrzGYr/2ZVAGZVM2ZVZmZVmWZVzGZV/2aAAGaA
+M2aAZmaAmWaAzGaA/2aqAGaqM2aqZmaqmWaqzGaq/2bVAGbVM2bVZmbVmWbVzGbV/2b/AGb/M2b/
+Zmb/mWb/zGb//5kAAJkAM5kAZpkAmZkAzJkA/5krAJkrM5krZpkrmZkrzJkr/5lVAJlVM5lVZplV
+mZlVzJlV/5mAAJmAM5mAZpmAmZmAzJmA/5mqAJmqM5mqZpmqmZmqzJmq/5nVAJnVM5nVZpnVmZnV
+zJnV/5n/AJn/M5n/Zpn/mZn/zJn//8wAAMwAM8wAZswAmcwAzMwA/8wrAMwrM8wrZswrmcwrzMwr
+/8xVAMxVM8xVZsxVmcxVzMxV/8yAAMyAM8yAZsyAmcyAzMyA/8yqAMyqM8yqZsyqmcyqzMyq/8zV
+AMzVM8zVZszVmczVzMzV/8z/AMz/M8z/Zsz/mcz/zMz///8AAP8AM/8AZv8Amf8AzP8A//8rAP8r
+M/8rZv8rmf8rzP8r//9VAP9VM/9VZv9Vmf9VzP9V//+AAP+AM/+AZv+Amf+AzP+A//+qAP+qM/+q
+Zv+qmf+qzP+q///VAP/VM//VZv/Vmf/VzP/V////AP//M///Zv//mf//zP///wAAAAAAAAAAAAAA
+AAjFAJURE0hwn8GDCBMaJJZwoEOCDhXu+5RQWaaDFjFKZIgwk8BPxEBazKhQWUWPD1NCFMjx4ECJ
+MD9RRAgS5saWC03arKgT48WdCInh3PcS6EGZJ0d6XKp0pNCGysqVA1qOnLKeBmvuk0puqkGuXp8G
+xfq1a0myAg12Nfu1atihINnarHoV6kqVKYcq0zRSUzJioIYFBhUScN2xcmFWFXvwb1mvB90aVJYs
+Id+EXSUH1TsULOTJZD0+TqhZKOG/V4kllthVWUAAOw==
+'''
+    }  
+    
+    #transform in tk icons (avoids the dereferencing problem)
+    for key, value in icons.items():
+        icons[key] = ttk.tkinter.PhotoImage(data = value)
+    # gives back the whished icon in ttk ready format
+    return  icons
 #********* end of tkk part ***********
 
 
@@ -747,166 +842,42 @@ if __name__ == '__main__':
     menu_help = Menu(menubar)
     menubar.add_cascade(menu=menu_help, label='?')
 
-    #creating database menu
+    #feeding database sub-menu
     menu_file.add_command(label='New Database', command=new_db)
     menu_file.add_command(label='New In-Memory Database', command=new_db_mem)
     menu_file.add_command(label='Connect to Database ...', command=open_db)
     menu_file.add_command(label='Close Database', command=close_db)   
     menu_file.add_separator()
     menu_file.add_command(label='Attach Database', command=attach_db)   
-    #menu_file.add_command(label='Detach Database', command=detach_db)   
-    #menu_file.add_separator()
-    #menu_file.add_command(label='Copy Database', command=copy_db)   
-    #menu_file.add_separator()
-    #menu_file.add_command(label='Export All Tables', command=export_tb)   
-    #menu_file.add_command(label='Export Database', command=export_db)   
-    #menu_file.add_command(label='Export Database Structure', command=export_st)   
     menu_file.add_separator()
     menu_file.add_command(label='Actualize', command=actualize_db)   
     menu_file.add_separator()
     menu_file.add_command(label='Quit', command=quit_db)   
 
-    #creating table menu
-    #menu_table.add_command(label='Create a Table', command=create_tb)
-    #menu_table.add_command(label='Delete a Table', command=delete_tb)
-    #menu_table.add_command(label='Clear a Table', command=clear_tb)   
-    #menu_table.add_separator()
+    #feeding table sub-menu
     menu_table.add_command(label='Import CSV table (with header)',
                            command=import_csvtb)   
-    #menu_table.add_command(label='Rename a Table', command=rename_tb)
-    #menu_table.add_command(label='Copy a Table', command=copy_tb)
-    #menu_table.add_command(label='Export a Table', command=export_tb)   
-    #menu_table.add_separator()
-    #menu_table.add_command(label='Rebuild a Table', command=rebuild_tb)   
 
-
-    #create a paned window with two panels
-    #content = ttk.Frame(win)
- 
-    #Toolbar
+    #Toolbar will be on TOP of the window (below the menu)
     toolbar = Frame(tk_win,   relief=RAISED)
-    #my icon
-    import base64
-    #gif_file = r"C:\Users\famille\Documents\winpython\stonebig_directory\$$sqlite_py_manager\pysql.gif"
-    #b64 = base64.encodestring(open(gif_file,"rb").read())
-    #print("gif_img='''\\\n" + b64.decode("utf8") + "'''")
-    souvenir=[]
-    run_img='''\
-R0lGODlhEQARAHAAACH5BAEAAPwALAAAAAARABEAhwAAAAAAMwAAZgAAmQAAzAAA/wArAAArMwAr
-ZgArmQArzAAr/wBVAABVMwBVZgBVmQBVzABV/wCAAACAMwCAZgCAmQCAzACA/wCqAACqMwCqZgCq
-mQCqzACq/wDVAADVMwDVZgDVmQDVzADV/wD/AAD/MwD/ZgD/mQD/zAD//zMAADMAMzMAZjMAmTMA
-zDMA/zMrADMrMzMrZjMrmTMrzDMr/zNVADNVMzNVZjNVmTNVzDNV/zOAADOAMzOAZjOAmTOAzDOA
-/zOqADOqMzOqZjOqmTOqzDOq/zPVADPVMzPVZjPVmTPVzDPV/zP/ADP/MzP/ZjP/mTP/zDP//2YA
-AGYAM2YAZmYAmWYAzGYA/2YrAGYrM2YrZmYrmWYrzGYr/2ZVAGZVM2ZVZmZVmWZVzGZV/2aAAGaA
-M2aAZmaAmWaAzGaA/2aqAGaqM2aqZmaqmWaqzGaq/2bVAGbVM2bVZmbVmWbVzGbV/2b/AGb/M2b/
-Zmb/mWb/zGb//5kAAJkAM5kAZpkAmZkAzJkA/5krAJkrM5krZpkrmZkrzJkr/5lVAJlVM5lVZplV
-mZlVzJlV/5mAAJmAM5mAZpmAmZmAzJmA/5mqAJmqM5mqZpmqmZmqzJmq/5nVAJnVM5nVZpnVmZnV
-zJnV/5n/AJn/M5n/Zpn/mZn/zJn//8wAAMwAM8wAZswAmcwAzMwA/8wrAMwrM8wrZswrmcwrzMwr
-/8xVAMxVM8xVZsxVmcxVzMxV/8yAAMyAM8yAZsyAmcyAzMyA/8yqAMyqM8yqZsyqmcyqzMyq/8zV
-AMzVM8zVZszVmczVzMzV/8z/AMz/M8z/Zsz/mcz/zMz///8AAP8AM/8AZv8Amf8AzP8A//8rAP8r
-M/8rZv8rmf8rzP8r//9VAP9VM/9VZv9Vmf9VzP9V//+AAP+AM/+AZv+Amf+AzP+A//+qAP+qM/+q
-Zv+qmf+qzP+q///VAP/VM//VZv/Vmf/VzP/V////AP//M///Zv//mf//zP///wAAAAAAAAAAAAAA
-AAigAPcJHEiwoEGBQ9oMGXKQYEJo+iDyYHhwSERlnugkg6aMh8E2yqB58jTHUyeN0HoUtEiSlKd9
-dObMUWbDob5SI0kKpNPGE7SaAntAwzTH4Jw2pW4MPAOt5Mc5n4Du4wHt05yYRfe1SUJHGQOCQo/y
-1DpnSDKpAm1UPXo0SZtPpWIYtLHR05A5bkol+3rQRoNkeuPybbivAYwGaAkrXnwwIAA7
-'''
-
-    refresh_img='''\
-R0lGODlhEQARAHAAACH5BAEAAPwALAAAAAARABEAhwAAAAAAMwAAZgAAmQAAzAAA/wArAAArMwAr
-ZgArmQArzAAr/wBVAABVMwBVZgBVmQBVzABV/wCAAACAMwCAZgCAmQCAzACA/wCqAACqMwCqZgCq
-mQCqzACq/wDVAADVMwDVZgDVmQDVzADV/wD/AAD/MwD/ZgD/mQD/zAD//zMAADMAMzMAZjMAmTMA
-zDMA/zMrADMrMzMrZjMrmTMrzDMr/zNVADNVMzNVZjNVmTNVzDNV/zOAADOAMzOAZjOAmTOAzDOA
-/zOqADOqMzOqZjOqmTOqzDOq/zPVADPVMzPVZjPVmTPVzDPV/zP/ADP/MzP/ZjP/mTP/zDP//2YA
-AGYAM2YAZmYAmWYAzGYA/2YrAGYrM2YrZmYrmWYrzGYr/2ZVAGZVM2ZVZmZVmWZVzGZV/2aAAGaA
-M2aAZmaAmWaAzGaA/2aqAGaqM2aqZmaqmWaqzGaq/2bVAGbVM2bVZmbVmWbVzGbV/2b/AGb/M2b/
-Zmb/mWb/zGb//5kAAJkAM5kAZpkAmZkAzJkA/5krAJkrM5krZpkrmZkrzJkr/5lVAJlVM5lVZplV
-mZlVzJlV/5mAAJmAM5mAZpmAmZmAzJmA/5mqAJmqM5mqZpmqmZmqzJmq/5nVAJnVM5nVZpnVmZnV
-zJnV/5n/AJn/M5n/Zpn/mZn/zJn//8wAAMwAM8wAZswAmcwAzMwA/8wrAMwrM8wrZswrmcwrzMwr
-/8xVAMxVM8xVZsxVmcxVzMxV/8yAAMyAM8yAZsyAmcyAzMyA/8yqAMyqM8yqZsyqmcyqzMyq/8zV
-AMzVM8zVZszVmczVzMzV/8z/AMz/M8z/Zsz/mcz/zMz///8AAP8AM/8AZv8Amf8AzP8A//8rAP8r
-M/8rZv8rmf8rzP8r//9VAP9VM/9VZv9Vmf9VzP9V//+AAP+AM/+AZv+Amf+AzP+A//+qAP+qM/+q
-Zv+qmf+qzP+q///VAP/VM//VZv/Vmf/VzP/V////AP//M///Zv//mf//zP///wAAAAAAAAAAAAAA
-AAifAAEIHLiv4D6BBREORPjjR44fBSEqHBgtRzRl0aIBsZPjIACPH3FEgxPKiJFQyyx4XJkDDo4c
-OUAdOQlkJUIfEAs+CMVT5cR9HT8+/AHEQk2FBpMqtbnPKBAIPx4cBApyKpBQp0Ll3PcDR9WPV40c
-AZWjAg5NQZFW4GkyFKhQDkB+/KhD04+3msgmJPgxp8OGcpGuNLiQb+HDC5cqVhoQADs=
-'''
-
-    deltab_img='''\
-R0lGODlhGAAYAHAAACH5BAEAAPwALAAAAAAYABgAhwAAAAAAMwAAZgAAmQAAzAAA/wArAAArMwAr
-ZgArmQArzAAr/wBVAABVMwBVZgBVmQBVzABV/wCAAACAMwCAZgCAmQCAzACA/wCqAACqMwCqZgCq
-mQCqzACq/wDVAADVMwDVZgDVmQDVzADV/wD/AAD/MwD/ZgD/mQD/zAD//zMAADMAMzMAZjMAmTMA
-zDMA/zMrADMrMzMrZjMrmTMrzDMr/zNVADNVMzNVZjNVmTNVzDNV/zOAADOAMzOAZjOAmTOAzDOA
-/zOqADOqMzOqZjOqmTOqzDOq/zPVADPVMzPVZjPVmTPVzDPV/zP/ADP/MzP/ZjP/mTP/zDP//2YA
-AGYAM2YAZmYAmWYAzGYA/2YrAGYrM2YrZmYrmWYrzGYr/2ZVAGZVM2ZVZmZVmWZVzGZV/2aAAGaA
-M2aAZmaAmWaAzGaA/2aqAGaqM2aqZmaqmWaqzGaq/2bVAGbVM2bVZmbVmWbVzGbV/2b/AGb/M2b/
-Zmb/mWb/zGb//5kAAJkAM5kAZpkAmZkAzJkA/5krAJkrM5krZpkrmZkrzJkr/5lVAJlVM5lVZplV
-mZlVzJlV/5mAAJmAM5mAZpmAmZmAzJmA/5mqAJmqM5mqZpmqmZmqzJmq/5nVAJnVM5nVZpnVmZnV
-zJnV/5n/AJn/M5n/Zpn/mZn/zJn//8wAAMwAM8wAZswAmcwAzMwA/8wrAMwrM8wrZswrmcwrzMwr
-/8xVAMxVM8xVZsxVmcxVzMxV/8yAAMyAM8yAZsyAmcyAzMyA/8yqAMyqM8yqZsyqmcyqzMyq/8zV
-AMzVM8zVZszVmczVzMzV/8z/AMz/M8z/Zsz/mcz/zMz///8AAP8AM/8AZv8Amf8AzP8A//8rAP8r
-M/8rZv8rmf8rzP8r//9VAP9VM/9VZv9Vmf9VzP9V//+AAP+AM/+AZv+Amf+AzP+A//+qAP+qM/+q
-Zv+qmf+qzP+q///VAP/VM//VZv/Vmf/VzP/V////AP//M///Zv//mf//zP///wAAAAAAAAAAAAAA
-AAiyAPcJHEiwoMGDAvUVVJgQoUOGDhGWI1fOIEVyEQWW24hx4MZy3jJq5CjQ28SN+yDuSzNpEsuX
-FMt9i7lRZcaTHMulEUnw48l9Llu+nOTwIkqgyoglXSrxI0WBaZQq/aT0oFGnSKkuJWbQZ0Wak7Yq
-y6TM4k+NMclqTdr1qEeKUpVp5bnvo1hin+hCxTuWqd6wcanqRYo37uCoypLO/UuWrF+6gJeSHTxJ
-ad+qetNcTkwsIAA7
-'''
-
-    deltabresult_img='''\
-R0lGODlhGAAYAHAAACH5BAEAAPwALAAAAAAYABgAhwAAAAAAMwAAZgAAmQAAzAAA/wArAAArMwAr
-ZgArmQArzAAr/wBVAABVMwBVZgBVmQBVzABV/wCAAACAMwCAZgCAmQCAzACA/wCqAACqMwCqZgCq
-mQCqzACq/wDVAADVMwDVZgDVmQDVzADV/wD/AAD/MwD/ZgD/mQD/zAD//zMAADMAMzMAZjMAmTMA
-zDMA/zMrADMrMzMrZjMrmTMrzDMr/zNVADNVMzNVZjNVmTNVzDNV/zOAADOAMzOAZjOAmTOAzDOA
-/zOqADOqMzOqZjOqmTOqzDOq/zPVADPVMzPVZjPVmTPVzDPV/zP/ADP/MzP/ZjP/mTP/zDP//2YA
-AGYAM2YAZmYAmWYAzGYA/2YrAGYrM2YrZmYrmWYrzGYr/2ZVAGZVM2ZVZmZVmWZVzGZV/2aAAGaA
-M2aAZmaAmWaAzGaA/2aqAGaqM2aqZmaqmWaqzGaq/2bVAGbVM2bVZmbVmWbVzGbV/2b/AGb/M2b/
-Zmb/mWb/zGb//5kAAJkAM5kAZpkAmZkAzJkA/5krAJkrM5krZpkrmZkrzJkr/5lVAJlVM5lVZplV
-mZlVzJlV/5mAAJmAM5mAZpmAmZmAzJmA/5mqAJmqM5mqZpmqmZmqzJmq/5nVAJnVM5nVZpnVmZnV
-zJnV/5n/AJn/M5n/Zpn/mZn/zJn//8wAAMwAM8wAZswAmcwAzMwA/8wrAMwrM8wrZswrmcwrzMwr
-/8xVAMxVM8xVZsxVmcxVzMxV/8yAAMyAM8yAZsyAmcyAzMyA/8yqAMyqM8yqZsyqmcyqzMyq/8zV
-AMzVM8zVZszVmczVzMzV/8z/AMz/M8z/Zsz/mcz/zMz///8AAP8AM/8AZv8Amf8AzP8A//8rAP8r
-M/8rZv8rmf8rzP8r//9VAP9VM/9VZv9Vmf9VzP9V//+AAP+AM/+AZv+Amf+AzP+A//+qAP+qM/+q
-Zv+qmf+qzP+q///VAP/VM//VZv/Vmf/VzP/V////AP//M///Zv//mf//zP///wAAAAAAAAAAAAAA
-AAjFAJURE0hwn8GDCBMaJJZwoEOCDhXu+5RQWaaDFjFKZIgwk8BPxEBazKhQWUWPD1NCFMjx4ECJ
-MD9RRAgS5saWC03arKgT48WdCInh3PcS6EGZJ0d6XKp0pNCGysqVA1qOnLKeBmvuk0puqkGuXp8G
-xfq1a0myAg12Nfu1atihINnarHoV6kqVKYcq0zRSUzJioIYFBhUScN2xcmFWFXvwb1mvB90aVJYs
-Id+EXSUH1TsULOTJZD0+TqhZKOG/V4kllthVWUAAOw==
-'''
-
-    #refresh_button
-    refresh_image = ttk.tkinter.PhotoImage(data=refresh_img)
-    actuButton = Button(toolbar, image=refresh_image ,
-            command=actualize_db)
-    actuButton.image = refresh_image
-    actuButton.pack(side=LEFT, padx=2, pady=2)
+    toolbar.pack(side=TOP, fill=X)
+    tk_icon = get_tk_icons()
     
-    #run button 
-    run_image = ttk.tkinter.PhotoImage(data=run_img)
-    #root.iconbitmap(default=gif_image)
-    runButton = Button(toolbar, image=run_image ,
-            command=run_tab)
-    runButton.image = run_image
-    runButton.pack(side=LEFT, padx=2, pady=2)
+    #add refresh_button
+    Button(toolbar, image = tk_icon['refresh_img'] ,
+            command=actualize_db).pack(side=LEFT, padx=2, pady=2)
+    
+    #add run button 
+    Button(toolbar, image = tk_icon['run_img'] ,
+            command=run_tab).pack(side=LEFT, padx=2, pady=2)
 
-    #dell_tab_button
-    deltab_image = ttk.tkinter.PhotoImage(data=deltab_img)
-    deltabButton = Button(toolbar, image=deltab_image ,
-            command=del_tab)
-    deltabButton.image = deltab_image
-    deltabButton.pack(side=LEFT, padx=2, pady=2)
+    #add dell_tab_button
+    Button(toolbar, image = tk_icon['deltab_img'] ,
+            command=del_tab).pack(side=LEFT, padx=2, pady=2)
 
-       
-    toolbar.pack(side=TOP, fill=X)
-
-    #dell_tabresult_button
-    deltabresult_image = ttk.tkinter.PhotoImage(data=deltabresult_img)
-    deltabresultButton = Button(toolbar, image=deltabresult_image ,
-            command=del_tabresult)
-    deltabresultButton.image = deltabresult_image
-    deltabresultButton.pack(side=LEFT, padx=2, pady=2)
-
-       
-    toolbar.pack(side=TOP, fill=X)
+    #add dell_tabresult_button
+    Button(toolbar, image = tk_icon['deltabresult_img'] ,
+            command=del_tabresult).pack(side=LEFT, padx=2, pady=2)
 
     #create a paned window 'p' that contains 2 frames : 'Database', 'Queries'
     # 'p' layout is managed by pack()
