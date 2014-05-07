@@ -58,12 +58,9 @@ class notebook_for_queries():
         self.notebook.grid(row=0, column=0, sticky=(N,W,S,E))
 
     def new_query_tab(self, title, query ):
-        #Add a new frame named 'title' to the notebook 
-        #with a First Script Frame containing 'query'
-        #and an added optionnal treeview of 'columns' containing 'data'
-        #pfg fw_welcome = Frame(self.notebook)
-        fw_welcome = ttk.Panedwindow(tk_win, orient=VERTICAL)
-        
+        "add a new Tab 'title' to the notebook, containing the Script 'query'"
+
+        fw_welcome = ttk.Panedwindow(tk_win, orient=VERTICAL)      
 
         fw_welcome.pack(fill = 'both', expand=True)
         self.notebook.add(fw_welcome, text=(title))
@@ -102,19 +99,19 @@ class notebook_for_queries():
         return working_tab_id #gives back tk_id reference of the new tab
 
     def remove_treeviews(self, given_tk_id  ):
-        """ remove results from given tab tk_id """
+        "remove results from given tab tk_id"
         for xx in self.fw_results[given_tk_id]:
             xx.grid_forget()
             xx.destroy()
         self.fw_results[given_tk_id]=[]    
         
     def add_treeview(self, given_tk_id,  columns, data):
-        #get actual tab object
+        "add a dataset result to the given tab tk_id"
         fw_welcome = self.fw_tabs[given_tk_id]
-        f2 = ttk.Labelframe(fw_welcome, text='Result', width=200, height=100); 
+        f2 = ttk.Labelframe(fw_welcome, 
+              text=('Result (%s lines)' % len(data)), width=200, height=100) 
         fw_welcome.add(f2)
         
-
         #keep   reference to result objects (by tk id)
         working_tab_id = "." + fw_welcome._name
         self.fw_results[working_tab_id].append(f2)       
@@ -302,7 +299,7 @@ def add_things(root_id, what, sql_definition = ""):
             cursor = conn.execute(sql )
             columns = [col_desc[0] for col_desc in cursor.description]
             cursor.close
-            definition=("select * from [%s]" %tab[1])
+            definition=("select * from [%s] limit 999" %tab[1])
             for c in range(len(columns)):
                 db_tree.insert(idc,"end",("%s.%s" % (tab[1], c)),
                      text=columns[c],tags=('ttk', 'simple'),
@@ -326,6 +323,7 @@ def new_db():
         conn = sqlite.connect(database_file,
                    detect_types = sqlite.PARSE_DECLTYPES)
         actualize_db()
+        
 def new_db_mem():
    """connect to a memory database """  
    global database_file
@@ -458,12 +456,8 @@ def attach_db():
        print("coucou")
 
 def import_csvtb_ok(thetop, entries):
+    "read input values from tk formular"
     #file, table, separator, header, create, replace_data   
-    actualize_db()
-    for entry in entries:
-        field = entry[0]
-        text  = entry[1].get()
-        print('%s: "%s"' % (field, text)) 
 
     csv_file = entries[0][1].get().strip()
     table_name = entries[1][1].get().strip()
@@ -511,11 +505,6 @@ def import_csvtb():
    top = Toplevel()
    top.title("Importing %s" % csv_file )
 
-   #msg = Message(top, text=about_message)
-   #msg.pack()
-
-   #button = Button(top, text="Dismiss", command=top.destroy)
-   #button.pack()
    content = ttk.Frame(top)
    frame = ttk.LabelFrame(content, borderwidth=5,  text='first 2 lines '
     ,relief="sunken", width=100, height=100)
@@ -581,6 +570,7 @@ def import_csvtb():
    top.grab_set()
 
 def t_doubleClicked(event):
+    "action on dbl_click on the Database structure" 
     selitems = db_tree.selection()
     if selitems:
         selitem = selitems[0]
@@ -596,7 +586,7 @@ def t_doubleClicked(event):
             cur = conn.execute(instruction)
             my_curdescription=cur.description
             rows = cur.fetchall()
-            #A query may have no result( like for an "update")
+            #A query may have no result(like for an "update", or a "fail")
             if    cur.description != None :
                 rowtitles = [row_info[0] for row_info in cur.description]
                 #add result
@@ -605,7 +595,7 @@ def t_doubleClicked(event):
             pass #show nothing
         
 def actualize_db():
-    """re-build database view"""
+    "re-build database view"
 
     #bind double-click
     db_tree.tag_bind('ttk', '<Double-1>', t_doubleClicked)
@@ -620,7 +610,7 @@ def actualize_db():
 
     #add the master
     add_things(id0,'master_table', """
-     SELECT 'sqlite_master', 'sqlite_master', 'sqlite_master' """)
+     SELECT 'sqlite_master', 'sqlite_master', '--no def.' """)
     
     #add Tables
     add_things(id0, 'table')
@@ -801,7 +791,6 @@ if __name__ == '__main__':
     db_tree.tag_configure("ttk")
     db_tree.pack(fill = BOTH , expand = 1)
  
-
     #Start with a memory Database
     new_db_mem()
     
