@@ -30,7 +30,7 @@ global conn
 #       tkinter-python-multiple-scrollbars-in-notebook-widget
 #********* start of tkk part ***********
 def sortby(tree, col, descending):
-    """Sort tree contents when a column is clicked on."""
+    """Sort a tree contents when a column is clicked on."""
     # grab values to sort
     data = [(tree.set(child, col), child) for child in tree.get_children('')]
 
@@ -99,8 +99,6 @@ select mysqrt(3), sqlite_version();
 
         fw_welcome.pack(fill = 'both', expand=True)
         self.notebook.add(fw_welcome, text=(title))
-
-
 
         #new "editable" script 
         f1 = ttk.Labelframe(fw_welcome, text='Script', width=200, height=100)
@@ -344,22 +342,22 @@ def add_things(root_id, what, sql_definition = ""):
         except :
             pass
 
-#menu part
+#F/menu actions part
 def new_db():
-   """create a new database"""
-   global database_file
-   global conn
-   import sqlite3 as sqlite 
-   filename_tk = filedialog.asksaveasfile(mode='w',defaultextension='.db',
+    """create a new database"""
+    global database_file
+    global conn
+    import sqlite3 as sqlite 
+    filename_tk = filedialog.asksaveasfile(mode='w',defaultextension='.db',
               title="Define a new database name and location",                          
               filetypes=[("default","*.db"),("other","*.db*"),("all","*.*")])
-   filename = filename_tk.name
-   filenametk.close
-   if   filename != "(none)":
-       database_file =  filename 
-       conn = sqlite.connect(database_file,
+    filename = filename_tk.name
+    filename_tk.close
+    if filename != "(none)":
+        database_file =  filename 
+        conn = sqlite.connect(database_file,
                    detect_types = sqlite.PARSE_DECLTYPES)
-       actualize_db()
+        actualize_db()
 def new_db_mem():
    """connect to a memory database """  
    global database_file
@@ -466,28 +464,21 @@ def create_and_add_results(instructions, tab_tk_id):
               n.add_treeview(tab_object, rowtitles, rows )
 
 def del_tabresult():
+   "delete active notebook tab's results"
    #get active notebook tab
-   nb = n.notebook
-   
+   nb = n.notebook  
    active_tab_id = nb.select()
+   
+   #remove active tab's results
    n.remove_treeviews(active_tab_id)
 
-
-
-
 def del_tab():
+   "delete active notebook tab's results"
    #get active notebook tab
    nb = n.notebook
-   
    active_tab_id = nb.select()
-   active_tab_number = nb.index(nb.select())
-   print("active_tab_id",active_tab_id)
-   print("active_tab_number",active_tab_number)
-   active_tab_name = nb.tab(nb.select(), "text")
-   print("removing tab [%s]" % active_tab_name)
-   #get current selection (or all)
-   print("nb.select()",nb.select())
-   print("",nb.index('current'))
+
+   #remove active tab from notebook
    nb.forget(nb.select() )
 
 def attach_db():
@@ -506,18 +497,6 @@ def attach_db():
        cur.close
        actualize_db()
        print("coucou")
-
-def copy_db():
-   print("coucou")
-def export_tb():
-   print("coucou")
-def export_db():
-   print("coucou")
-def export_st():
-   print("coucou")
-def import_db():
-   print("coucou")
-
 
 def import_csvtb_ok(thetop, entries):
     #file, table, separator, header, create, replace_data   
@@ -644,8 +623,6 @@ def import_csvtb():
    
    top.grab_set()
 
-
-
 def t_doubleClicked(event):
     selitems = t.selection()
     if selitems:
@@ -680,7 +657,6 @@ def actualize_db():
     #"db", "type", "name", "detail"
     print("refresh " , database_file)
 
-
     #bind double-click
     t.tag_bind('ttk', '<Double-1>', t_doubleClicked)
     #t.delete(database_file)
@@ -712,40 +688,15 @@ def actualize_db():
     add_things(id0,'attached_databases', "PRAGMA database_list")
     
 
-    
-
-
-
-def reconnect_db():
-   print("coucou")
 def quit_db():
-   #"yes" or "no"
+   "quit application button"
+   global tk_win 
    messagebox.askyesno(
 	   message='Are you sure you want to quit ?',
 	   icon='question', title='Install')
    messagebox.showinfo(message='Have a good day')
-def create_tb():
-   print("coucou")
-def delete_tb():
-   print("coucou")
-def clear_tb():
-   print("coucou")
-
-def rename_tb():
-   print("coucou")
-
-def copy_tb():
-   print("coucou")
-
-
-def rebuild_tb():
-   print("coucou")
-
-
-def import_csv():
-   print("coucou")
-
-
+   tk_win.destroy()
+#F/menu actions
 
 #D/baresql token editor
 class baresql():
