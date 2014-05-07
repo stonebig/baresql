@@ -1,8 +1,5 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
-
-#v10e : csv window grab focus + show content
-
 import sqlite3 as sqlite 
 import sys, os
 import csv
@@ -30,7 +27,7 @@ global conn
 #       tkinter-python-multiple-scrollbars-in-notebook-widget
 #********* start of tkk part ***********
 def sortby(tree, col, descending):
-    """Sort a tree contents when a column is clicked on."""
+    """Sort a ttk treeview contents when a column is clicked on."""
     # grab values to sort
     data = [(tree.set(child, col), child) for child in tree.get_children('')]
 
@@ -43,7 +40,7 @@ def sortby(tree, col, descending):
     tree.heading(col,
         command=lambda col=col: sortby(tree, col, int(not descending)))
     
-class sqltrees():
+class notebook_for_queries():
     """Create a Notebook with a list in the First frame
        and query results in following treeview frames """
     def __init__(self, root, queries):
@@ -57,42 +54,13 @@ class sqltrees():
         # Resize rules
         root.columnconfigure(0, weight=1)
         root.rowconfigure(0, weight=1)
-        #pfg root.title("sql book")
-
-        #Prepare Welcome informations  with the Numberd list of Queries
-        welcome_frame = "Welcome"
-        welcome_text = """-- Welcome Frame (with a small memo)
---       CREATE a table  
-create table items  (ItemNo, Description,Kg);
-create table products(ItemNo TEXT PRIMARY KEY,Description TEXT ,Kg NUMERIC);
---       CREATE an index 
-CREATE INDEX items_id1 ON items(ItemNo ASC, Kg Desc);
---       CREATE a view 
-CREATE VIEW items_and_product as select * 
-   from items as i inner join products as p ON i.ItemNo=p.ItemNo;
---       CREATE a python embedded function  
-pydef mysqrt(s):
-    return ("%s" %s**.5);
---       USE a python embedded function  
-select mysqrt(3), sqlite_version();    
-"""
-        welcome_columns = ("",)
-        welcome_data=[]
-        if type(welcome_data)==type('ee'):
-            welcome_data=[welcome_data]
-        welcome_data=list(enumerate(welcome_data))    
-
-
-        #Create first Welcome tab  
-        self.column_treeview(welcome_frame, welcome_text,
-                             welcome_columns, welcome_data)
-
-        ##grid widgets
+        #grid widgets
         self.notebook.grid(row=0, column=0, sticky=(N,W,S,E))
 
-    def column_treeview(self, title, query,columns, data):
+    def new_query_tab(self, title, query ):
         #Add a new frame named 'title' to the notebook 
-
+        #with a First Script Frame containing 'query'
+        #and an added optionnal treeview of 'columns' containing 'data'
         #pfg fw_welcome = Frame(self.notebook)
         fw_welcome = ttk.Panedwindow(tk_win, orient=VERTICAL)
         
@@ -127,13 +95,11 @@ select mysqrt(3), sqlite_version();
         self.fw_labels[working_tab_id]  = fw_label        
         #keep   reference to result objects (by tk id)
         self.fw_results[working_tab_id]  = []        
-
-        #add a new Result to this notebook pane
-        self.add_treeview(fw_welcome,  columns, data)
-        #self.remove_treeviews()
         
         #activate this tab print(self.notebook.tabs())
         self.notebook.select(working_tab_id) 
+
+        return working_tab_id #gives back tk_id reference of the new tab
 
     def remove_treeviews(self, given_tk_id  ):
         """ remove results from given tab tk_id """
@@ -142,7 +108,9 @@ select mysqrt(3), sqlite_version();
             xx.destroy()
         self.fw_results[given_tk_id]=[]    
         
-    def add_treeview(self, fw_welcome,  columns, data):
+    def add_treeview(self, given_tk_id,  columns, data):
+        #get actual tab object
+        fw_welcome = self.fw_tabs[given_tk_id]
         f2 = ttk.Labelframe(fw_welcome, text='Result', width=200, height=100); 
         fw_welcome.add(f2)
         
@@ -179,7 +147,7 @@ select mysqrt(3), sqlite_version();
         for col in tuple(tree_columns):
             fw_Box.heading(col, text=col.title(),
                 command=lambda c=col: sortby(fw_Box, c, 0))
-            # XXX tkFont.Font().measure expected args are incorrect according
+            # tkFont.Font().measure expected args are incorrect according
             #     to the Tk docs
             fw_Box.column(col, width=font.Font().measure(col.title()))
 
@@ -190,7 +158,7 @@ select mysqrt(3), sqlite_version();
                 item=(items,)
             #replace line_return by space via a lambda
             
-            clean = lambda T: T.replace("\n"," ") if type(T)==type('ee') else T
+            clean = lambda x: x.replace("\n"," ") if type(x)==type('ee') else x
             line_cells=tuple(clean(item[c]) for c  in range(len(tree_columns)))            
             
             fw_Box.insert('', 'end', values=line_cells)
@@ -317,17 +285,17 @@ def add_things(root_id, what, sql_definition = ""):
     tables = cursor.fetchall()
     cursor.close
 
-    idt = t.insert(root_id,"end",what,text="%s (%s)" % (what, len(tables)) ,
-                   values=(conn,) )
+    idt = db_tree.insert(root_id,"end",what,text="%s (%s)" % (what, 
+                         len(tables)) , values=(conn,) )
     for   tab in tables:
-        idc = t.insert(idt,"end",tab[0],text=tab[1],
+        idc = db_tree.insert(idt,"end",tab[0],text=tab[1],
                   values=(conn,))
         sql = "SELECT * FROM  [%s] limit 0;" % tab[1]
         columns=['(Definition)']
         definition = tab[2]
         if sql_definition == "PRAGMA database_list":
             definition = "ATTACH DATABASE '%s' as '%s'"%(tab[2],tab[1])
-        t.insert(idc,"end",("%s.%s" % (tab[1], -1)),
+        db_tree.insert(idc,"end",("%s.%s" % (tab[1], -1)),
                  text=columns[0],tags=('ttk', 'simple'),
                  values=(definition,))
         try :
@@ -336,7 +304,7 @@ def add_things(root_id, what, sql_definition = ""):
             cursor.close
             definition=("select * from [%s]" %tab[1])
             for c in range(len(columns)):
-                t.insert(idc,"end",("%s.%s" % (tab[1], c)),
+                db_tree.insert(idc,"end",("%s.%s" % (tab[1], c)),
                      text=columns[c],tags=('ttk', 'simple'),
                      values=(definition,))
         except :
@@ -385,18 +353,15 @@ def close_db():
    global conn
    global database_file
    try :
-       t.delete("Database")
+       db_tree.delete("Database")
    except :
        pass
    conn.close
    
 def run_tab():
-   #get active notebook tab
+   """clear previous results and run current script of a tab"""
    nb = n.notebook
-   
    active_tab_id = nb.select()
-   active_tab_number = nb.index(nb.select())
-   active_tab_name = nb.tab(nb.select(), "text")
    
    #remove previous results
    n.remove_treeviews(active_tab_id)
@@ -414,13 +379,11 @@ def run_tab():
    fw.focus_set()
 
 def create_and_add_results(instructions, tab_tk_id):
-    nb = n.notebook
-    tab_object = n.fw_tabs[tab_tk_id]
-    jouer=baresql()
-    a_jouer= jouer.get_sqlsplit(instructions, remove_comments = True) 
+    """execute instructions and add them to given tab results"""
+    jouer = baresql()
+    a_jouer = jouer.get_sqlsplit(instructions, remove_comments = True) 
     for instruction in a_jouer:
         instruction = instruction.replace(";","").strip(' \t\n\r')
-        print('jouer ', instruction)
         rows=[]
         rowtitles=("#N/A",)
         if instruction == "":
@@ -429,7 +392,7 @@ def create_and_add_results(instructions, tab_tk_id):
         
         elif instruction[:5] == "pydef" :
             instruction = instruction.strip('; \t\n\r')
-            print(instruction[2:])
+
             exec(instruction[2:]  , globals() , locals())
             firstline=(instruction[5:].splitlines()[0]).lstrip()
             firstline = firstline.replace(" ","") + "(" 
@@ -437,7 +400,7 @@ def create_and_add_results(instructions, tab_tk_id):
             instr_parms=firstline.count(',')+1
             instr_add = "conn.create_function('%s', %s, %s)" %(
                instr_name,instr_parms, instr_name)
-            print(instr_add)
+
             exec(instr_add , globals() , locals())
             rowtitles=("Creating embedded python function",)
             for i in (instruction[2:].splitlines()) :
@@ -451,20 +414,16 @@ def create_and_add_results(instructions, tab_tk_id):
             #A query may have no result( like for an "update")
             if    cur.description != None :
                 rowtitles = [row_info[0] for row_info in cur.description]
-                #print (rowtitles)
-                #for row in rows:
-                #    print (row)
-                #show one frame per query result
             cur.close
           except:
             pass
         
         #end of one sql
         if rowtitles != ("#N/A",) :#rows!=[]  :
-              n.add_treeview(tab_object, rowtitles, rows )
+              n.add_treeview(tab_tk_id, rowtitles, rows )
 
 def del_tabresult():
-   "delete active notebook tab's results"
+   """delete active notebook tab's results"""
    #get active notebook tab
    nb = n.notebook  
    active_tab_id = nb.select()
@@ -473,7 +432,7 @@ def del_tabresult():
    n.remove_treeviews(active_tab_id)
 
 def del_tab():
-   "delete active notebook tab's results"
+   """delete active notebook tab's results"""
    #get active notebook tab
    nb = n.notebook
    active_tab_id = nb.select()
@@ -539,9 +498,8 @@ def import_csvtb_ok(thetop, entries):
               curs.execute(sql, row)
        curs.executemany(sql, reader)
        conn.commit()
-
-
        actualize_db()
+       
 def import_csvtb():
    """import a csv table with header"""
    global conn
@@ -572,7 +530,6 @@ def import_csvtb():
       ,('Replace existing data',True)
       ] 
    nb_fields=len(fields)
-   
 
    content.grid(column=0, row=0, sticky=(N, S, E, W))
    
@@ -624,20 +581,17 @@ def import_csvtb():
    top.grab_set()
 
 def t_doubleClicked(event):
-    selitems = t.selection()
+    selitems = db_tree.selection()
     if selitems:
         selitem = selitems[0]
-        #item_id = t.focus()
-        text = t.item(selitem, "text")
-        instruction = t.item(selitem, "values")[0]
+        #item_id = db_tree.focus()
+        text = db_tree.item(selitem, "text")
+        instruction = db_tree.item(selitem, "values")[0]
         #parent Table
-        parent_node =  t.parent(selitem)
-        parent_table = t.item(parent_node, "text")
-        #print(instruction)
-        #print(selitem)
-        #print(text)
-        rows=("",)
-        rowtitles=("#N/A",)
+        parent_node =  db_tree.parent(selitem)
+        parent_table = db_tree.item(parent_node, "text")
+        #create a new tab 
+        new_tab_ref = n.new_query_tab(parent_table, instruction)
         try :
             cur = conn.execute(instruction)
             my_curdescription=cur.description
@@ -645,26 +599,22 @@ def t_doubleClicked(event):
             #A query may have no result( like for an "update")
             if    cur.description != None :
                 rowtitles = [row_info[0] for row_info in cur.description]
-                #print (rowtitles)
-                #for row in rows:
-                #    print (row)
-                #show one frame per query result
+                #add result
+                n.add_treeview(new_tab_ref, rowtitles, rows)
         except:
-            pass
-        n.column_treeview(parent_table, instruction , rowtitles, rows)
+            pass #show nothing
         
 def actualize_db():
-    #"db", "type", "name", "detail"
-    print("refresh " , database_file)
+    """re-build database view"""
 
     #bind double-click
-    t.tag_bind('ttk', '<Double-1>', t_doubleClicked)
+    db_tree.tag_bind('ttk', '<Double-1>', t_doubleClicked)
     #t.delete(database_file)
     try :
-        t.delete("Database")
+        db_tree.delete("Database")
     except :
         pass
-    id0 = t.insert("",0,"Database",
+    id0 = db_tree.insert("",0,"Database",
                    text=(database_file.replace("\\","/")).split("/")[-1] , 
                    values=(database_file)   )
 
@@ -689,7 +639,7 @@ def actualize_db():
     
 
 def quit_db():
-   "quit application button"
+   """quit application button"""
    global tk_win 
    messagebox.askyesno(
 	   message='Are you sure you want to quit ?',
@@ -746,7 +696,7 @@ class baresql():
 
 
     def get_sqlsplit(self, sql, remove_comments=False):
-        "split an sql file in list of separated sql orders"
+        """split an sql file in list of separated sql orders"""
         beg = end = 0; length = len(sql)
         sqls = []
         while end < length-1:
@@ -842,17 +792,36 @@ if __name__ == '__main__':
     p.add(f_queries)
     
     #build tree view 't' inside the left 'Database' Frame
-    t = ttk.Treeview(f_database , displaycolumns = [], columns = ("detail"))
+    db_tree = ttk.Treeview(f_database , displaycolumns = [], 
+                           columns = ("detail"))
 
     #create a  notebook 'n' inside the right 'Queries' Frame
-    n = sqltrees(f_queries , [])
+    n = notebook_for_queries(f_queries , [])
 
-    t.tag_configure("ttk")
-    t.pack(fill = BOTH , expand = 1)
+    db_tree.tag_configure("ttk")
+    db_tree.pack(fill = BOTH , expand = 1)
  
 
     #Start with a memory Database
     new_db_mem()
+    
+    #Propose a Demo
+    welcome_text = """-- Welcome Frame (with a small memo)
+--       CREATE a table  
+create table items  (ItemNo, Description,Kg);
+create table products(ItemNo TEXT PRIMARY KEY,Description TEXT ,Kg NUMERIC);
+--       CREATE an index 
+CREATE INDEX items_id1 ON items(ItemNo ASC, Kg Desc);
+--       CREATE a view 
+CREATE VIEW items_and_product as select * 
+   from items as i inner join products as p ON i.ItemNo=p.ItemNo;
+--       CREATE a python embedded function  
+pydef mysqrt(s):
+    return ("%s" %s**.5);
+--       USE a python embedded function  
+select mysqrt(3), sqlite_version();    
+"""
+    n.new_query_tab("Welcome", welcome_text )
     
     tk_win.mainloop()
 
