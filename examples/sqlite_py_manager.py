@@ -14,6 +14,7 @@ from tkinter import messagebox
 global database_file
 global conn 
 
+
 #********* start of tkk part ***********
 # applied from tkk presentation of Jeff Armstrong at PyOhio july 2012 :
 #      pyvideo.org/category/22/pyohio-2012
@@ -61,7 +62,6 @@ class notebook_for_queries():
         "add a new Tab 'title' to the notebook, containing the Script 'query'"
 
         fw_welcome = ttk.Panedwindow(tk_win, orient=VERTICAL)      
-
         fw_welcome.pack(fill = 'both', expand=True)
         self.notebook.add(fw_welcome, text=(title))
 
@@ -183,7 +183,7 @@ def get_tk_icons():
     # 3-copy/paste the result in the code of your program as below
 
     icons = {'run_img':'''\
-R0lGODlhEQARAHAAACH5BAEAAPwALAAAAAARABEAhwAAAAAAMwAAZgAAmQAAzAAA/wArAAArMwAr
+R0lGODlhGAAYAHAAACH5BAEAAPwALAAAAAAYABgAhwAAAAAAMwAAZgAAmQAAzAAA/wArAAArMwAr
 ZgArmQArzAAr/wBVAABVMwBVZgBVmQBVzABV/wCAAACAMwCAZgCAmQCAzACA/wCqAACqMwCqZgCq
 mQCqzACq/wDVAADVMwDVZgDVmQDVzADV/wD/AAD/MwD/ZgD/mQD/zAD//zMAADMAMzMAZjMAmTMA
 zDMA/zMrADMrMzMrZjMrmTMrzDMr/zNVADNVMzNVZjNVmTNVzDNV/zOAADOAMzOAZjOAmTOAzDOA
@@ -197,12 +197,11 @@ zJnV/5n/AJn/M5n/Zpn/mZn/zJn//8wAAMwAM8wAZswAmcwAzMwA/8wrAMwrM8wrZswrmcwrzMwr
 AMzVM8zVZszVmczVzMzV/8z/AMz/M8z/Zsz/mcz/zMz///8AAP8AM/8AZv8Amf8AzP8A//8rAP8r
 M/8rZv8rmf8rzP8r//9VAP9VM/9VZv9Vmf9VzP9V//+AAP+AM/+AZv+Amf+AzP+A//+qAP+qM/+q
 Zv+qmf+qzP+q///VAP/VM//VZv/Vmf/VzP/V////AP//M///Zv//mf//zP///wAAAAAAAAAAAAAA
-AAigAPcJHEiwoEGBQ9oMGXKQYEJo+iDyYHhwSERlnugkg6aMh8E2yqB58jTHUyeN0HoUtEiSlKd9
-dObMUWbDob5SI0kKpNPGE7SaAntAwzTH4Jw2pW4MPAOt5Mc5n4Du4wHt05yYRfe1SUJHGQOCQo/y
-1DpnSDKpAm1UPXo0SZtPpWIYtLHR05A5bkol+3rQRoNkeuPybbivAYwGaAkrXnwwIAA7
-''' 
+AAhTAIcIHEiwoMGDCBMqXKhwH8OF+yI+RBix4sSCFTNeFJix48WOIB+CHAlxJEmKJk8aTEkyw0qW
+GV0ehCmxIUuZNlUy1Cky5kaONX9yFEq0qNGHAQEAOw==
+'''
     ,'refresh_img':'''\
-R0lGODlhEQARAHAAACH5BAEAAPwALAAAAAARABEAhwAAAAAAMwAAZgAAmQAAzAAA/wArAAArMwAr
+R0lGODlhGAAYAHAAACH5BAEAAPwALAAAAAAYABgAhwAAAAAAMwAAZgAAmQAAzAAA/wArAAArMwAr
 ZgArmQArzAAr/wBVAABVMwBVZgBVmQBVzABV/wCAAACAMwCAZgCAmQCAzACA/wCqAACqMwCqZgCq
 mQCqzACq/wDVAADVMwDVZgDVmQDVzADV/wD/AAD/MwD/ZgD/mQD/zAD//zMAADMAMzMAZjMAmTMA
 zDMA/zMrADMrMzMrZjMrmTMrzDMr/zNVADNVMzNVZjNVmTNVzDNV/zOAADOAMzOAZjOAmTOAzDOA
@@ -216,9 +215,9 @@ zJnV/5n/AJn/M5n/Zpn/mZn/zJn//8wAAMwAM8wAZswAmcwAzMwA/8wrAMwrM8wrZswrmcwrzMwr
 AMzVM8zVZszVmczVzMzV/8z/AMz/M8z/Zsz/mcz/zMz///8AAP8AM/8AZv8Amf8AzP8A//8rAP8r
 M/8rZv8rmf8rzP8r//9VAP9VM/9VZv9Vmf9VzP9V//+AAP+AM/+AZv+Amf+AzP+A//+qAP+qM/+q
 Zv+qmf+qzP+q///VAP/VM//VZv/Vmf/VzP/V////AP//M///Zv//mf//zP///wAAAAAAAAAAAAAA
-AAifAAEIHLiv4D6BBREORPjjR44fBSEqHBgtRzRl0aIBsZPjIACPH3FEgxPKiJFQyyx4XJkDDo4c
-OUAdOQlkJUIfEAs+CMVT5cR9HT8+/AHEQk2FBpMqtbnPKBAIPx4cBApyKpBQp0Ll3PcDR9WPV40c
-AZWjAg5NQZFW4GkyFKhQDkB+/KhD04+3msgmJPgxp8OGcpGuNLiQb+HDC5cqVhoQADs=
+AAiXAPcJHEiwoMGDCBMqHKKwoUANDAlGdChwCJEMBDNcpKjxA5GJAj9qUKjRokaMBCGClEjEY8mD
+QyAajMkwg5KVBJOMLChz38aFOx9OxGmwZ8WgFC0S/Ehx4E+BGh2i3BfV6VSESvcZHRgz4cl9Q7oW
+/HjV6RAQJokghKg2I82WbRGiLVtya8KLIM8STYgUbN+mEgELHnwwIAA7
 '''
     ,'deltab_img':'''\
 R0lGODlhGAAYAHAAACH5BAEAAPwALAAAAAAYABgAhwAAAAAAMwAAZgAAmQAAzAAA/wArAAArMwAr
@@ -235,10 +234,9 @@ zJnV/5n/AJn/M5n/Zpn/mZn/zJn//8wAAMwAM8wAZswAmcwAzMwA/8wrAMwrM8wrZswrmcwrzMwr
 AMzVM8zVZszVmczVzMzV/8z/AMz/M8z/Zsz/mcz/zMz///8AAP8AM/8AZv8Amf8AzP8A//8rAP8r
 M/8rZv8rmf8rzP8r//9VAP9VM/9VZv9Vmf9VzP9V//+AAP+AM/+AZv+Amf+AzP+A//+qAP+qM/+q
 Zv+qmf+qzP+q///VAP/VM//VZv/Vmf/VzP/V////AP//M///Zv//mf//zP///wAAAAAAAAAAAAAA
-AAiyAPcJHEiwoMGDAvUVVJgQoUOGDhGWI1fOIEVyEQWW24hx4MZy3jJq5CjQ28SN+yDuSzNpEsuX
-FMt9i7lRZcaTHMulEUnw48l9Llu+nOTwIkqgyoglXSrxI0WBaZQq/aT0oFGnSKkuJWbQZ0Wak7Yq
-y6TM4k+NMclqTdr1qEeKUpVp5bnvo1hin+hCxTuWqd6wcanqRYo37uCoypLO/UuWrF+6gJeSHTxJ
-ad+qetNcTkwsIAA7
+AAh7APcJHEiwoMGDCBMqXMjQm0ODDr01jEgwosSJD/dZvEgwjcePHiN+26iP4cCNDtOYPLlxH0iQ
+CVu6VEazpjKEKAWmsVnzIMqHO3neLNjSYlCeECkKtCh0aMWMLL01XRlx6sqZQq9iRXr1qE2tXnt2
+tboyLE2wZE2aVRYQADs=
 '''
     ,'deltabresult_img':'''\
 R0lGODlhGAAYAHAAACH5BAEAAPwALAAAAAAYABgAhwAAAAAAMwAAZgAAmQAAzAAA/wArAAArMwAr
@@ -255,10 +253,28 @@ zJnV/5n/AJn/M5n/Zpn/mZn/zJn//8wAAMwAM8wAZswAmcwAzMwA/8wrAMwrM8wrZswrmcwrzMwr
 AMzVM8zVZszVmczVzMzV/8z/AMz/M8z/Zsz/mcz/zMz///8AAP8AM/8AZv8Amf8AzP8A//8rAP8r
 M/8rZv8rmf8rzP8r//9VAP9VM/9VZv9Vmf9VzP9V//+AAP+AM/+AZv+Amf+AzP+A//+qAP+qM/+q
 Zv+qmf+qzP+q///VAP/VM//VZv/Vmf/VzP/V////AP//M///Zv//mf//zP///wAAAAAAAAAAAAAA
-AAjFAJURE0hwn8GDCBMaJJZwoEOCDhXu+5RQWaaDFjFKZIgwk8BPxEBazKhQWUWPD1NCFMjx4ECJ
-MD9RRAgS5saWC03arKgT48WdCInh3PcS6EGZJ0d6XKp0pNCGysqVA1qOnLKeBmvuk0puqkGuXp8G
-xfq1a0myAg12Nfu1atihINnarHoV6kqVKYcq0zRSUzJioIYFBhUScN2xcmFWFXvwb1mvB90aVJYs
-Id+EXSUH1TsULOTJZD0+TqhZKOG/V4kllthVWUAAOw==
+AAiCADMJHJhpn8GDCBMaLIiQoEOBCvcxPAhx4cSJDRM+3PhQI8aIDT9WBOmxJEmTFD+eHGnxJEqL
+HGN6lCbNJU2WEhnSrIlwZ8uQCXfSfJkzqFCiFX32HFo0JFOSN0XGlOmUJ1RpOJM+Nag060ehVn+m
+NKp0LNB9Zbky9bo1YtSpcAUGBAA7
+'''
+    ,'newtab_img':'''\
+R0lGODlhGAAYAHAAACH5BAEAAPwALAAAAAAYABgAhwAAAAAAMwAAZgAAmQAAzAAA/wArAAArMwAr
+ZgArmQArzAAr/wBVAABVMwBVZgBVmQBVzABV/wCAAACAMwCAZgCAmQCAzACA/wCqAACqMwCqZgCq
+mQCqzACq/wDVAADVMwDVZgDVmQDVzADV/wD/AAD/MwD/ZgD/mQD/zAD//zMAADMAMzMAZjMAmTMA
+zDMA/zMrADMrMzMrZjMrmTMrzDMr/zNVADNVMzNVZjNVmTNVzDNV/zOAADOAMzOAZjOAmTOAzDOA
+/zOqADOqMzOqZjOqmTOqzDOq/zPVADPVMzPVZjPVmTPVzDPV/zP/ADP/MzP/ZjP/mTP/zDP//2YA
+AGYAM2YAZmYAmWYAzGYA/2YrAGYrM2YrZmYrmWYrzGYr/2ZVAGZVM2ZVZmZVmWZVzGZV/2aAAGaA
+M2aAZmaAmWaAzGaA/2aqAGaqM2aqZmaqmWaqzGaq/2bVAGbVM2bVZmbVmWbVzGbV/2b/AGb/M2b/
+Zmb/mWb/zGb//5kAAJkAM5kAZpkAmZkAzJkA/5krAJkrM5krZpkrmZkrzJkr/5lVAJlVM5lVZplV
+mZlVzJlV/5mAAJmAM5mAZpmAmZmAzJmA/5mqAJmqM5mqZpmqmZmqzJmq/5nVAJnVM5nVZpnVmZnV
+zJnV/5n/AJn/M5n/Zpn/mZn/zJn//8wAAMwAM8wAZswAmcwAzMwA/8wrAMwrM8wrZswrmcwrzMwr
+/8xVAMxVM8xVZsxVmcxVzMxV/8yAAMyAM8yAZsyAmcyAzMyA/8yqAMyqM8yqZsyqmcyqzMyq/8zV
+AMzVM8zVZszVmczVzMzV/8z/AMz/M8z/Zsz/mcz/zMz///8AAP8AM/8AZv8Amf8AzP8A//8rAP8r
+M/8rZv8rmf8rzP8r//9VAP9VM/9VZv9Vmf9VzP9V//+AAP+AM/+AZv+Amf+AzP+A//+qAP+qM/+q
+Zv+qmf+qzP+q///VAP/VM//VZv/Vmf/VzP/V////AP//M///Zv//mf//zP///wAAAAAAAAAAAAAA
+AAiBAJUJHKhsn8GDCPcBWHiwIEKCAhMqZGjQYUOLFg8uBNAwIUSHG0NuzLjvo0CRIklGTIgypEqS
+LCmW9AgT4caOD2tqlPlS4kOPNE0SBJpT6ECiF33iXFpRZ0WkTZU+/ZlT6kyqSaWqDGp0a1WtUEs6
+vcpUrFWvWZWijQq2aNePCQMCADs=
 '''
     }  
     
@@ -438,6 +454,12 @@ def del_tab():
    #remove active tab from notebook
    nb.forget(nb.select() )
 
+
+def new_tab():
+   """delete active notebook tab's results"""
+   #get active notebook tab
+   n.new_query_tab("___","")
+
 def attach_db():
    """attach an existing database"""
    global database_file
@@ -465,10 +487,11 @@ def import_csvtb_ok(thetop, entries):
     header = entries[3][1].get()
     creation = entries[4][1].get()
     replacing = entries[5][1].get()
+    encoding_is = entries[6][1].get()
     if   csv_file != "(none)" and len(csv_file)*len(table_name)*len(separ)>1:
        thetop.destroy()
        curs = conn.cursor()
-       reader = csv.reader(open(csv_file, 'r'),
+       reader = csv.reader(open(csv_file, 'r', encoding = encoding_is),
                            delimiter = separ, quotechar='"')
        #read first_line for headers and/or number of columns
        row = next(reader) 
@@ -495,79 +518,122 @@ def import_csvtb_ok(thetop, entries):
        actualize_db()
        
 def import_csvtb():
-   """import a csv table with header"""
-   global conn
-   global tk_win
-   import sqlite3 as sqlite 
-   csv_file = filedialog.askopenfilename(defaultextension='.db',
+    """import a csv table with header (suggesting encoding and separator)"""
+    global conn
+    global tk_win
+    import sqlite3 as sqlite 
+    import locale
+    csv_file = filedialog.askopenfilename(defaultextension='.db',
               title="Choose a csv file (with header) to import ",
               filetypes=[("default","*.csv"),("other","*.txt"),("all","*.*")])
-   top = Toplevel()
-   top.title("Importing %s" % csv_file )
 
-   content = ttk.Frame(top)
-   frame = ttk.LabelFrame(content, borderwidth=5,  text='first 2 lines '
-    ,relief="sunken", width=100, height=100)
-   
-   #http://www.python-course.eu/tkinter_entry_widgets.php
-   fields = [
-       ('csv Name', csv_file )
-      ,('table Name',(csv_file.replace("\\","/")).split("/")[-1].split(".")[0])
-      ,('column separator',';')
-      ,('Header line',True)
-      ,('Create table',True)
-      ,('Replace existing data',True)
-      ] 
-   nb_fields=len(fields)
+    #Guessing encoding
+    with open(csv_file, "rb") as f:
+        data = f.read(5)
+    if data.startswith(b"\xEF\xBB\xBF"): # UTF-8 "BOM"
+        encodings = ["utf-8-sig"]
+    elif data.startswith(b"\xFF\xFE") or data.startswith(b"\xFE\xFF"): # UTF-16
+        encodings = ["utf16"]
+    else:
+        encodings = [locale.getdefaultlocale()[1], "utf8"]
 
-   content.grid(column=0, row=0, sticky=(N, S, E, W))
+
+    #Guessing csv separator
+    #function to try to guess the separator
+    def splitcsv(csv_in, separator = ",", string_limit = "'"):
+        "split a csv string respecting string delimiters"
+        x = csv_in.split(string_limit)
+        if len(x) == 1 : #Basic situation of 1 column
+            return csv_in.split(separator)
+        else:
+            #Replace active separators per "<µ²é£>" , then split on "<µ²é£>" 
+            for i in range(0,len(x), 2):
+                x[i] = x[i].replace(separator, "<µ²é£>")
+            return string_limit.join(x).split("<µ²é£>")
+
+    with open(csv_file, encoding = encodings[0]) as f:
+        line1 = f.readline(2222)
+        line2 = f.readline(2222)
+    default_sep=","
+    nb_default = len(splitcsv(line1, ",", '"'))
+    nb_semi = len(splitcsv(line1, ";", '"'))
+    if nb_semi> nb_default and len(splitcsv(line2, ";", '"')) == nb_semi :
+        #more semicolumn than comas, and numbers equal on first to lines
+        default_sep = ";"
+
+    #Defining the formular fields
+    #http://www.python-course.eu/tkinter_entry_widgets.php
+    fields = [
+        ('csv Name', csv_file )
+       ,('table Name',(csv_file.replace("\\","/")).split("/")[-1].split(".")[0])
+       ,('column separator',default_sep)
+       ,('Header line',True)
+       ,('Create table',True)
+       ,('Replace existing data',True)
+       ,('Encoding',encodings[0])
+       ] 
+    nb_fields=len(fields)
+
+    #Drawing the request form 
+    top = Toplevel()
+    top.title("Importing %s" % csv_file )
+
+    content = ttk.Frame(top)
+    frame = ttk.LabelFrame(content, borderwidth=5,  text='first 2 lines '
+     ,relief="sunken", width=200, height=100)
    
-   frame.grid(column=2, row=0, columnspan=1, rowspan=nb_fields+1,
+
+    content.grid(column=0, row=0, sticky=(N, S, E, W))
+   
+    frame.grid(column=2, row=0, columnspan=1, rowspan=nb_fields+1,
               sticky=(N, S, E, W))
 
-   #text of file
-   fw_label = ttk.tkinter.Text(frame ,bd =1)
-   fw_label.pack(side =LEFT)     
-   scroll = ttk.Scrollbar(frame,   command = fw_label.yview)
-   scroll.pack(side =RIGHT, fill =Y)
-   fw_label.configure(yscrollcommand = scroll.set)
-   with open(csv_file) as f:
-    line1 = f.readline(2222)
-    line2 = f.readline(2222)
+    #text of file
+    fw_label = ttk.tkinter.Text(frame ,bd =1)
+    fw_label.pack(side =LEFT, expand =YES, fill =BOTH)     
+    scroll = ttk.Scrollbar(frame,   command = fw_label.yview)
+    scroll.pack(side =RIGHT, fill =Y)
+    fw_label.configure(yscrollcommand = scroll.set)
     fw_label.insert(END, line1 +'\n'+ line2)
-   fw_label.config(state=DISABLED)
-   #typ-it choices
-   entries = []
-   for field in fields:
-      ta_col = len(entries)
-      if field[1]==True or field[1]==False:
-          name_var = BooleanVar()
-          name = ttk.Checkbutton(content, text=field[0], 
+    #fw_label.config(state=DISABLED)
+   
+    #typ-it choices
+    entries = []
+    for field in fields:
+        ta_col = len(entries)
+        if field[1]==True or field[1]==False:
+            name_var = BooleanVar()
+            name = ttk.Checkbutton(content, text=field[0], 
                                  variable = name_var, onvalue=True)
-          name_var.set(field[1])  
-          name.grid(column=1, row=ta_col,   sticky=(N, W), pady=5, padx=5)
-          entries.append((field[0], name_var))
-      else :
-          namelbl = ttk.Label(content,   text=field[0] )
-          namelbl.grid(column=0, row=ta_col, sticky=(N, E), pady=5, padx=5)
-          name_var = StringVar()
-          name = ttk.Entry(content, textvariable = name_var)
-          name_var.set(field[1])
-          name.grid(column=1, row=ta_col,   sticky=(N, E, W), pady=5, padx=5)
-          entries.append((field[0], name_var))
+            name_var.set(field[1])  
+            name.grid(column=1, row=ta_col,   sticky=(N, W), pady=5, padx=5)
+            entries.append((field[0], name_var))
+        else :
+            namelbl = ttk.Label(content,   text=field[0] )
+            namelbl.grid(column=0, row=ta_col, sticky=(N, E), pady=5, padx=5)
+            name_var = StringVar()
+            name = ttk.Entry(content, textvariable = name_var)
+            name_var.set(field[1])
+            name.grid(column=1, row=ta_col,   sticky=(N, E, W), pady=5, padx=5)
+            entries.append((field[0], name_var))
    
-   okbutton = ttk.Button(content, text="Import", 
+    okbutton = ttk.Button(content, text="Import", 
             command= lambda a=top, b=entries: import_csvtb_ok(a, b))
-   cancelbutton = ttk.Button(content, text="Cancel", command=top.destroy)
+    cancelbutton = ttk.Button(content, text="Cancel", command=top.destroy)
 
-   okbutton.grid(column=0, row=len(entries))
-   cancelbutton.grid(column=1, row=len(entries))
-   for x in range(3):
-       Grid.columnconfigure(content, x,weight=1)
-   for y in range(3):
-       Grid.rowconfigure( content, y, weight=1)
+    okbutton.grid(column=0, row=len(entries))
+    cancelbutton.grid(column=1, row=len(entries))
+    for x in range(3):
+        Grid.columnconfigure(content, x,weight=1)
+    for y in range(3):
+        Grid.rowconfigure( content, y, weight=1)
    
-   top.grab_set()
+    # Resize rules
+    top.columnconfigure(0, weight=1)
+    top.rowconfigure(0, weight=1)
+    #grid widgets
+    content.grid( column=0, row=0,sticky=(N,W,S,E))
+    top.grab_set()
 
 def t_doubleClicked(event):
     "action on dbl_click on the Database structure" 
@@ -712,7 +778,7 @@ if __name__ == '__main__':
 
     #create main window tk_win
     tk_win = Tk()
-    tk_win.title('sqlite python browser') # window Title
+    tk_win.title('Sqlite_py_manager : browsing SQLite datas on the go')
     tk_win.option_add('*tearOff', FALSE)  # recommanded by tk documentation
     tk_win.minsize(600,200)               # minimal size
     
@@ -748,6 +814,10 @@ if __name__ == '__main__':
     #feeding table sub-menu
     menu_table.add_command(label='Import CSV table (with header)',
                            command=import_csvtb)   
+                           
+    menu_help.add_command(label='about',command = lambda : messagebox.showinfo(
+       message="""Sqlite_py_manager is a small SQLite Browser written in Python
+            \n(https://github.com/stonebig/baresql/blob/master/examples)"""))
 
     #Toolbar will be on TOP of the window (below the menu)
     toolbar = Frame(tk_win,   relief=RAISED)
@@ -769,6 +839,10 @@ if __name__ == '__main__':
     #add dell_tabresult_button
     Button(toolbar, image = tk_icon['deltabresult_img'] ,
             command=del_tabresult).pack(side=LEFT, padx=2, pady=2)
+
+    #add new_tab_button
+    Button(toolbar, image = tk_icon['newtab_img'] ,
+            command=new_tab).pack(side=LEFT, padx=2, pady=2)
 
     #create a paned window 'p' that contains 2 frames : 'Database', 'Queries'
     # 'p' layout is managed by pack()
@@ -795,21 +869,20 @@ if __name__ == '__main__':
     new_db_mem()
     
     #Propose a Demo
-    welcome_text = """-- Welcome Frame (with a small memo)
---       CREATE a table  
+    welcome_text = """-- Welcome Frame = a small memo (demo = click on "->")
+\n-- to CREATE a table  :
 create table items  (ItemNo, Description,Kg);
 create table products(ItemNo TEXT PRIMARY KEY,Description TEXT ,Kg NUMERIC);
---       CREATE an index 
+\n-- to CREATE an index :
 CREATE INDEX items_id1 ON items(ItemNo ASC, Kg Desc);
---       CREATE a view 
+\n-- to CREATE a view :
 CREATE VIEW items_and_product as select * 
    from items as i inner join products as p ON i.ItemNo=p.ItemNo;
---       CREATE a python embedded function  
+\n-- to CREATE a Python embedded function :
 pydef mysqrt(s):
     return ("%s" %s**.5);
---       USE a python embedded function  
-select mysqrt(3), sqlite_version();    
-"""
+\n-- to USE a python embedded function :
+select mysqrt(3), sqlite_version();"""
     n.new_query_tab("Welcome", welcome_text )
     
     tk_win.mainloop()
