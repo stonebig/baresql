@@ -288,41 +288,56 @@ vcpUrFWvWZWijQq2aNePCQMCADs=
 
 
 #tree objet subfunctions
-def add_things(root_id, what, sql_definition = ""):
-    #add Tables (sort order, name, sql)
-    sql = ("""SELECT name, name, sql FROM sqlite_master 
-     WHERE type='%s' order by name;""" % what)
-    if not sql_definition == "":
-        sql = sql_definition
-    cursor = conn.execute(sql )
-    tables = cursor.fetchall()
-    cursor.close
+def add_things(root_id , what , attached_db = ""):
+    "fill a database structure tree on demand"
+    #Build list (objet_name, objet_text, creation_request) for 'what' category 
+    if what=='master_table':
+        sql= "SELECT 'sqlite_master', 'sqlite_master', '--(auto_created)'"
+    elif what=='attached_databases':
+        sql="PRAGMA database_list" 
+    else:
+        sql = ("""SELECT  name as keytree, name, sql FROM %ssqlite_master 
+            WHERE type='%s' order by name;""" % (  attached_db, what))
 
-    idt = db_tree.insert(root_id,"end",what,text="%s (%s)" % (what, 
-                         len(tables)) , values=(conn,) )
-    for   tab in tables:
-        idc = db_tree.insert(idt,"end",tab[0],text=tab[1],
-                  values=(conn,))
-        sql = "SELECT * FROM  [%s] limit 0;" % tab[1]
-        columns=['(Definition)']
+    tables = conn.execute( sql ).fetchall()
+
+    #if  'attached_database' category, remove the first (main) database 
+    if what=='attached_databases':
+        tables = tables[1:]
+        
+    #level 1 : create  the "what" node (as not empty)
+    if len(tables)>0:
+        idt = db_tree.insert(root_id,"end", "%s%s" % (attached_db, what)
+                             , text="%s (%s)" % (  what, len(tables)) 
+                             , values=(conn,"") )
+    #level 2 : create the 'founds' below  the 'what' node just created
+    for tab in tables:
         definition = tab[2]
-        if sql_definition == "PRAGMA database_list":
+        #include the description of it , specific for database_list
+        if sql  == "PRAGMA database_list":
             definition = "ATTACH DATABASE '%s' as '%s'"%(tab[2],tab[1])
-        db_tree.insert(idc,"end",("%s.%s" % (tab[1], -1)),
-                 text=columns[0],tags=('ttk', 'simple'),
-                 values=(definition,))
+        idc = db_tree.insert(idt,"end",
+                             "%s%s" % (attached_db,tab[0]) 
+                             ,text=tab[1] ,values=(definition,))
+
+        db_tree.insert(idc,"end",("%s%s.%s" % (attached_db,tab[1], -1)),
+                 text = ['(Definition)'],tags=('run',), values=(definition,""))
+        #level 3 : create the detail (columns) for each 'founds'
         try :
+            #PRAGMA PRAGMA pandasql.table_info([items])
+            sql = "SELECT * FROM  %s[%s] limit 0;" % (attached_db,tab[1])
             cursor = conn.execute(sql )
             columns = [col_desc[0] for col_desc in cursor.description]
             cursor.close
-            definition=("select * from [%s] limit 999" %tab[1])
+            definition=("select * from %s[%s] limit 999"% (attached_db,tab[1]))
             for c in range(len(columns)):
-                db_tree.insert(idc,"end",("%s.%s" % (tab[1], c)),
-                     text=columns[c],tags=('ttk', 'simple'),
-                     values=(definition,))
+                db_tree.insert(idc,"end",("%s%s.%s" % (attached_db,tab[1], c)),
+                     text=columns[c],tags=('run',),
+                     values=(definition,definition))
         except :
             pass
-
+    return [i[1] for i in tables]
+    
 #F/menu actions part
 def new_db():
     """create a new database"""
@@ -356,7 +371,7 @@ def open_db():
    import sqlite3 as sqlite 
    filename = filedialog.askopenfilename(defaultextension='.db',
               filetypes=[("default","*.db"),("other","*.db*"),("all","*.*")])
-   print(filename)
+
    if   filename != "(none)":
        database_file =  filename 
        conn = sqlite.connect(database_file,
@@ -386,7 +401,7 @@ def run_tab():
        script = (fw.get('sel.first', 'sel.last')) 
    except:
        script = fw.get(1.0,END)[:-1]   
-   print(script)
+
    create_and_add_results(script, active_tab_id)
    #workaround bug http://bugs.python.org/issue17511 (for python <=3.3.2)
    #otherwise the focus is still set but not shown
@@ -469,13 +484,12 @@ def attach_db():
               title="Choose a database to attach ",    
               filetypes=[("default","*.db"),("other","*.db*"),("all","*.*")])
    attach = ((filename.replace("\\","/")).split("/")[-1]).split(".")[0]
-   print(filename, " " , attach)
+
    if   filename != "(none)":
        attach_order = "ATTACH DATABASE '%s' as '%s' "%(filename,attach);
        cur = conn.execute(attach_order)
        cur.close
        actualize_db()
-       print("coucou")
 
 def import_csvtb_ok(thetop, entries):
     "read input values from tk formular"
@@ -643,13 +657,14 @@ def t_doubleClicked(event):
         #item_id = db_tree.focus()
         text = db_tree.item(selitem, "text")
         instruction = db_tree.item(selitem, "values")[0]
+        action = db_tree.item(selitem, "values")[1]
         #parent Table
         parent_node =  db_tree.parent(selitem)
         parent_table = db_tree.item(parent_node, "text")
         #create a new tab 
         new_tab_ref = n.new_query_tab(parent_table, instruction)
         try :
-            cur = conn.execute(instruction)
+            cur = conn.execute(action)
             my_curdescription=cur.description
             rows = cur.fetchall()
             #A query may have no result(like for an "update", or a "fail")
@@ -663,36 +678,34 @@ def t_doubleClicked(event):
 def actualize_db():
     "re-build database view"
 
-    #bind double-click
-    db_tree.tag_bind('ttk', '<Double-1>', t_doubleClicked)
-    #t.delete(database_file)
-    try :
-        db_tree.delete("Database")
-    except :
-        pass
+    #bind double-click for easy user interaction
+    db_tree.tag_bind('run', '<Double-1>', t_doubleClicked)
+    
+    #delete existing tree entries before re-creating them
+    for node  in db_tree.get_children():
+            db_tree.delete(node )
+
+    #create initial node
     id0 = db_tree.insert("",0,"Database",
                    text=(database_file.replace("\\","/")).split("/")[-1] , 
-                   values=(database_file)   )
+                   values=(database_file,"")   )
 
-    #add the master
-    add_things(id0,'master_table', """
-     SELECT 'sqlite_master', 'sqlite_master', '--no def.' """)
+    #add master_table, Tables, Views, Trigger, Index
+    for category in ['master_table', 'table', 'view', 'trigger', 'index']:
+        add_things(id0, category)
+
+    #add attached databases, and get back attached table names
+    attached =  add_things(id0,'attached_databases' )
     
-    #add Tables
-    add_things(id0, 'table')
-
-    #add Views
-    add_things(id0, 'view')
-
-    #add Trigger
-    add_things(id0, 'trigger')
-
-    #add Index
-    add_things(id0, 'index')
-
-    #add attached databases
-    add_things(id0,'attached_databases', "PRAGMA database_list")
-    
+    #redo for attached database
+    for att_db in attached:
+        #create initial node for attached table
+        id0 = db_tree.insert("",'end', att_db + "(Attached)",
+                   text = att_db + " (attached database)", 
+                   values = (att_db,"")  )
+        #add master_table, Tables, Views, Trigger, Index for each attached db
+        for category in ['master_table', 'table', 'view', 'trigger', 'index']:
+            add_things(id0, category, att_db +".") 
 
 def quit_db():
    """quit application button"""
@@ -793,9 +806,6 @@ if __name__ == '__main__':
     menu_table = Menu(menubar)
     menubar.add_cascade(menu=menu_table, label='Table')
 
-    menu_tools = Menu(menubar)
-    menubar.add_cascade(menu=menu_tools, label='Tools')
-
     menu_help = Menu(menubar)
     menubar.add_cascade(menu=menu_help, label='?')
 
@@ -857,12 +867,12 @@ if __name__ == '__main__':
     
     #build tree view 't' inside the left 'Database' Frame
     db_tree = ttk.Treeview(f_database , displaycolumns = [], 
-                           columns = ("detail"))
+                           columns = ("detail","action"))
 
     #create a  notebook 'n' inside the right 'Queries' Frame
     n = notebook_for_queries(f_queries , [])
 
-    db_tree.tag_configure("ttk")
+    db_tree.tag_configure("run")
     db_tree.pack(fill = BOTH , expand = 1)
  
     #Start with a memory Database
