@@ -16,17 +16,6 @@ global conn
 
 
 #********* start of tkk part ***********
-# applied from tkk presentation of Jeff Armstrong at PyOhio july 2012 :
-#      pyvideo.org/category/22/pyohio-2012
-# and related source code :
-#     https://github.com/ArmstrongJ/presentations/blob/master/pyohio2012 
-# and treeview sorting example :
-#     http://svn.python.org/projects/python/branches/pep-0384/
-#        Demo/tkinter/ttk/treeview_multicolumn.py
-# and treeview in a notebook example :
-#     http://stackoverflow.com/questions/10776912/
-#       tkinter-python-multiple-scrollbars-in-notebook-widget
-#********* start of tkk part ***********
 def sortby(tree, col, descending):
     """Sort a ttk treeview contents when a column is clicked on."""
     # grab values to sort
@@ -132,38 +121,31 @@ class notebook_for_queries():
         fw_vsb.grid(column=1, row=1, sticky='ns', in_=f2)
         fw_hsb.grid(column=0, row=2, sticky='new', in_=f2)
 
-        #This new Treeview , which is on row 1 of the new Frame , 
-        #will occupy all variable space
+        #This new Treeview  may occupy all variable space
         f2_row = (1+len(self.fw_results[working_tab_id]))
-        #f2.grid(column=0, row=f2_row, sticky='nsew' , in_=fw_welcome )
         f2.grid_columnconfigure(0, weight=1)
         f2.grid_rowconfigure(f2_row, weight=1) 
-        #f2.pack(side =SOUTH, expand =YES, fill =BOTH, padx =2, pady =2)
 
-        #feed list
+        #feed Treeview Header
         for col in tuple(tree_columns):
             fw_Box.heading(col, text=col.title(),
                 command=lambda c=col: sortby(fw_Box, c, 0))
-            # tkFont.Font().measure expected args are incorrect according
-            #     to the Tk docs
             fw_Box.column(col, width=font.Font().measure(col.title()))
 
+        #feed Treeview Lines
         for items in data:
-            #cas string
             item=items
-            if type(item)==type('ee'):
+            if type(item)==type('ee'): # if line is a string, redo a tuple
                 item=(items,)
-            #replace line_return by space via a lambda
-            
+            #replace line_return by space (grid don't like line_returns)            
             clean = lambda x: x.replace("\n"," ") if type(x)==type('ee') else x
             line_cells=tuple(clean(item[c]) for c  in range(len(tree_columns)))            
-            
+            #insert the line of data
             fw_Box.insert('', 'end', values=line_cells)
-            # adjust columns length if necessary
+            # adjust columns length if necessary and possible
             for indx, val in enumerate(line_cells):
                 try :
                     ilen = font.Font().measure(val)
-                
                     if fw_Box.column(tree_columns[indx], width=None
                         ) < ilen and ilen<400 :
                         fw_Box.column(tree_columns[indx], width=ilen)
@@ -173,12 +155,11 @@ class notebook_for_queries():
 def get_tk_icons():
     "gives back the image of the whished icon "
 
-    #Inlined base 64 icons are created via the following procedure
+    #Inlined base 64 icons creation procedure :
     # 1-create a toto.gif image of 24x24 size (for this example)
     # 2-apply this transformation step : 
     #    import base64
-    #    gif_file = r"C:\Users\...\gif_file.gif"
-    #    b64 = base64.encodestring(open(gif_file,"rb").read())
+    #    b64 = base64.encodestring(open(toto.gif,"rb").read())
     #    print('gif_img':'''\\\n" + b64.decode("utf8") + "'''")
     # 3-copy/paste the result in the code of your program as below
 
@@ -495,13 +476,14 @@ def import_csvtb_ok(thetop, entries):
     "read input values from tk formular"
     #file, table, separator, header, create, replace_data   
 
-    csv_file = entries[0][1].get().strip()
-    table_name = entries[1][1].get().strip()
-    separ = entries[2][1].get()
-    header = entries[3][1].get()
-    creation = entries[4][1].get()
-    replacing = entries[5][1].get()
-    encoding_is = entries[6][1].get()
+    csv_file = entries[0][1]().strip()
+    table_name = entries[1][1]().strip()
+    separ = entries[2][1]()
+    header = entries[3][1]()
+    creation = entries[4][1]()
+    replacing = entries[5][1]()
+    encoding_is = entries[6][1]()
+    data_is =  entries[7][1]() 
     if   csv_file != "(none)" and len(csv_file)*len(table_name)*len(separ)>1:
        thetop.destroy()
        curs = conn.cursor()
@@ -530,77 +512,21 @@ def import_csvtb_ok(thetop, entries):
        curs.executemany(sql, reader)
        conn.commit()
        actualize_db()
-       
-def import_csvtb():
-    """import a csv table with header (suggesting encoding and separator)"""
-    global conn
-    global tk_win
-    import sqlite3 as sqlite 
-    import locale
-    csv_file = filedialog.askopenfilename(defaultextension='.db',
-              title="Choose a csv file (with header) to import ",
-              filetypes=[("default","*.csv"),("other","*.txt"),("all","*.*")])
-
-    #Guessing encoding
-    with open(csv_file, "rb") as f:
-        data = f.read(5)
-    if data.startswith(b"\xEF\xBB\xBF"): # UTF-8 "BOM"
-        encodings = ["utf-8-sig"]
-    elif data.startswith(b"\xFF\xFE") or data.startswith(b"\xFE\xFF"): # UTF-16
-        encodings = ["utf16"]
-    else:
-        encodings = [locale.getdefaultlocale()[1], "utf8"]
-
-
-    #Guessing csv separator
-    #function to try to guess the separator
-    def splitcsv(csv_in, separator = ",", string_limit = "'"):
-        "split a csv string respecting string delimiters"
-        x = csv_in.split(string_limit)
-        if len(x) == 1 : #Basic situation of 1 column
-            return csv_in.split(separator)
-        else:
-            #Replace active separators per "<µ²é£>" , then split on "<µ²é£>" 
-            for i in range(0,len(x), 2):
-                x[i] = x[i].replace(separator, "<µ²é£>")
-            return string_limit.join(x).split("<µ²é£>")
-
-    with open(csv_file, encoding = encodings[0]) as f:
-        line1 = f.readline(2222)
-        line2 = f.readline(2222)
-    default_sep=","
-    nb_default = len(splitcsv(line1, ",", '"'))
-    nb_semi = len(splitcsv(line1, ";", '"'))
-    if nb_semi> nb_default and len(splitcsv(line2, ";", '"')) == nb_semi :
-        #more semicolumn than comas, and numbers equal on first to lines
-        default_sep = ";"
-
-    #Defining the formular fields
-    #http://www.python-course.eu/tkinter_entry_widgets.php
-    fields = [
-        ('csv Name', csv_file )
-       ,('table Name',(csv_file.replace("\\","/")).split("/")[-1].split(".")[0])
-       ,('column separator',default_sep)
-       ,('Header line',True)
-       ,('Create table',True)
-       ,('Replace existing data',True)
-       ,('Encoding',encodings[0])
-       ] 
-    nb_fields=len(fields)
-
+ 
+def create_dialog(title, fields, buttons , datas):
+    "create a formular with title, fields, button, data"
     #Drawing the request form 
     top = Toplevel()
-    top.title("Importing %s" % csv_file )
+    top.title(title)
 
     content = ttk.Frame(top)
-    frame = ttk.LabelFrame(content, borderwidth=5,  text='first 2 lines '
-     ,relief="sunken", width=200, height=100)
-   
+    frame = ttk.LabelFrame(content, borderwidth = 5,  text = datas[0]
+     ,relief="sunken", width = 200, height = 100)
 
-    content.grid(column=0, row=0, sticky=(N, S, E, W))
+    content.grid(column = 0, row = 0, sticky = (N, S, E, W))
    
-    frame.grid(column=2, row=0, columnspan=1, rowspan=nb_fields+1,
-              sticky=(N, S, E, W))
+    frame.grid(column = 2 , row = 0 , columnspan = 1 , 
+              rowspan = len(fields)+1 , sticky = (N, S, E, W) )
 
     #text of file
     fw_label = ttk.tkinter.Text(frame ,bd =1)
@@ -608,8 +534,7 @@ def import_csvtb():
     scroll = ttk.Scrollbar(frame,   command = fw_label.yview)
     scroll.pack(side =RIGHT, fill =Y)
     fw_label.configure(yscrollcommand = scroll.set)
-    fw_label.insert(END, line1 +'\n'+ line2)
-    #fw_label.config(state=DISABLED)
+    fw_label.insert(END, datas[1])
    
     #typ-it choices
     entries = []
@@ -621,7 +546,7 @@ def import_csvtb():
                                  variable = name_var, onvalue=True)
             name_var.set(field[1])  
             name.grid(column=1, row=ta_col,   sticky=(N, W), pady=5, padx=5)
-            entries.append((field[0], name_var))
+            entries.append((field[0], name_var.get))
         else :
             namelbl = ttk.Label(content,   text=field[0] )
             namelbl.grid(column=0, row=ta_col, sticky=(N, E), pady=5, padx=5)
@@ -629,11 +554,12 @@ def import_csvtb():
             name = ttk.Entry(content, textvariable = name_var)
             name_var.set(field[1])
             name.grid(column=1, row=ta_col,   sticky=(N, E, W), pady=5, padx=5)
-            entries.append((field[0], name_var))
-   
-    okbutton = ttk.Button(content, text="Import", 
-            command= lambda a=top, b=entries: import_csvtb_ok(a, b))
-    cancelbutton = ttk.Button(content, text="Cancel", command=top.destroy)
+            entries.append((field[0], name_var.get))
+    #add Text
+    entries.append(('data', lambda : fw_label.get('0.0',END)))
+    okbutton = ttk.Button(content, text = buttons[0], 
+            command = lambda  a = top, b = entries: (buttons[1])(a, b)) 
+    cancelbutton = ttk.Button(content, text = "Cancel", command = top.destroy)
 
     okbutton.grid(column=0, row=len(entries))
     cancelbutton.grid(column=1, row=len(entries))
@@ -648,7 +574,126 @@ def import_csvtb():
     #grid widgets
     content.grid( column=0, row=0,sticky=(N,W,S,E))
     top.grab_set()
+      
+def import_csvtb():
+    """import csv dialog (with guessing of encoding and separator)"""
+    import locale
+    csv_file = filedialog.askopenfilename(defaultextension='.db',
+              title="Choose a csv file (with header) to import ",
+              filetypes=[("default","*.csv"),("other","*.txt"),("all","*.*")])
 
+    #Guessing encoding
+    with open(csv_file, "rb") as f:
+        data = f.read(5)
+    encodings = [locale.getdefaultlocale()[1], "utf8"]
+    if data.startswith(b"\xEF\xBB\xBF"): # UTF-8 "BOM"
+        encodings = ["utf-8-sig"]
+    elif data.startswith(b"\xFF\xFE") or data.startswith(b"\xFE\xFF"): # UTF-16
+        encodings = ["utf16"]
+
+    #Guessing csv separator
+    def splitcsv(csv_in, separator = ",", string_limit = "'"):
+        "split a csv string respecting string delimiters"
+        x = csv_in.split(string_limit)
+        if len(x) == 1 : #Basic situation of 1 column
+            return csv_in.split(separator)
+        else: #Replace active separators per "<µ²é£>" , then split on "<µ²é£>" 
+            for i in range(0,len(x), 2):
+                x[i] = x[i].replace(separator, "<µ²é£>")
+            return string_limit.join(x).split("<µ²é£>")
+
+    with open(csv_file, encoding = encodings[0]) as f:
+        preview = f.read(9999)
+    has_header = csv.Sniffer().has_header(preview)
+    dialect = csv.Sniffer().sniff(preview)
+    default_sep = dialect.delimiter
+
+    #Request form (see http://www.python-course.eu/tkinter_entry_widgets.php)
+    fields = [('csv Name', csv_file )
+     ,('table Name', (csv_file.replace("\\","/")).split("/")[-1].split(".")[0])
+     ,('column separator', default_sep)
+     ,('Header line', has_header)
+     ,('Create table', True)
+     ,('Replace existing data', True)
+     ,('Encoding', encodings[0]) ] 
+ 
+    create_dialog(("Importing %s" % csv_file ), fields  
+                  , ("Import",  import_csvtb_ok)                  
+                  , ("first 3 lines " , "\n\n".join(preview.splitlines()[:3])))
+
+
+def export_csv_ok(thetop, entries):
+    "export a csv table (action)"
+    import sqlite3
+    global conn
+    import csv
+    csv_file    = entries[0][1]().strip()
+    separ       = entries[1][1]()
+    header      = entries[2][1]()
+    encoding_is = entries[3][1]()
+    query_is     = entries[-1][1]() 
+    cursor = conn.cursor()
+    cursor.execute(query_is)
+    thetop.destroy()
+    with open(csv_file, 'w', newline='', encoding = encoding_is) as fout:
+        writer = csv.writer(fout, delimiter=',',
+                            quotechar='"', quoting=csv.QUOTE_MINIMAL)
+        if header:
+            writer.writerow([i[0] for i in cursor.description]) # heading row
+        writer.writerows(cursor.fetchall())
+    
+def export_csv_dialog(query = "select 42 as known_facts"):
+    "export csv dialog"
+    import locale
+    #Proposed encoding
+    encodings = list(set([locale.getdefaultlocale()[1],
+                         "utf-8-sig","utf16","utf8" ]))
+    #Proposed csv separator
+    default_sep=[",",";"]
+
+    filename_tk = filedialog.asksaveasfile(mode='w',defaultextension='.db',
+              title="Choose .csv file name",                          
+              filetypes=[("default","*.csv"),("other","*.txt"),("all","*.*")])
+    csv_file = filename_tk.name
+    filename_tk.close
+    if csv_file != "(none)":
+        #Request form (see http://www.python-course.eu/tkinter_entry_widgets.php)
+        fields = [('csv Name', csv_file )
+           ,('column separator',default_sep[0])
+           ,('Header line',True)
+           ,('Encoding',encodings[0]) ] 
+        nb_fields=len(fields)
+ 
+        create_dialog(("Export to %s" % csv_file ), fields ,
+                  ("Export",  export_csv_ok)                  
+                  , ("Data to export (MUST be 1 Request)" ,(query)))
+
+def export_csvtb():
+    "get table selected definition and launch cvs export dialog"
+    selitems = db_tree.selection()
+    if selitems:
+        #item_id = db_tree.focus()
+        selitem = db_tree.selection()[0]
+        text = db_tree.item(selitem, "text")
+        action = db_tree.item(selitem, "values")[1]
+        if action != "":
+              export_csv_dialog(action)  
+              
+def export_csvqr():
+    "get tab selected definition and launch cvs export dialog"
+    nb = n.notebook
+    active_tab_id = nb.select()
+    #get current selection (or all)
+    fw =n.fw_labels[active_tab_id]
+    action = ""
+    try :
+        action = (fw.get('sel.first', 'sel.last')) 
+    except:
+        action = fw.get(1.0,END)[:-1]   
+
+    if action != "":
+              export_csv_dialog(action)   
+              
 def t_doubleClicked(event):
     "action on dbl_click on the Database structure" 
     selitems = db_tree.selection()
@@ -803,8 +848,8 @@ if __name__ == '__main__':
     menu_file = Menu(menubar)
     menubar.add_cascade(menu=menu_file, label='Database')
 
-    menu_table = Menu(menubar)
-    menubar.add_cascade(menu=menu_table, label='Table')
+    menu_tools = Menu(menubar)
+    menubar.add_cascade(menu=menu_tools, label='Tools')
 
     menu_help = Menu(menubar)
     menubar.add_cascade(menu=menu_help, label='?')
@@ -822,8 +867,13 @@ if __name__ == '__main__':
     menu_file.add_command(label='Quit', command=quit_db)   
 
     #feeding table sub-menu
-    menu_table.add_command(label='Import CSV table (with header)',
+    menu_tools.add_command(label='Import a CSV file',
                            command=import_csvtb)   
+    menu_tools.add_command(label='Export the selected table',
+                           command=export_csvtb)   
+    menu_tools.add_separator()
+    menu_tools.add_command(label="Export the selected request",
+                           command=export_csvqr)   
                            
     menu_help.add_command(label='about',command = lambda : messagebox.showinfo(
        message="""Sqlite_py_manager is a small SQLite Browser written in Python
@@ -879,20 +929,27 @@ if __name__ == '__main__':
     new_db_mem()
     
     #Propose a Demo
-    welcome_text = """-- Welcome Frame = a small memo (demo = click on "->")
-\n-- to CREATE a table  :
-create table items  (ItemNo, Description,Kg);
-create table products(ItemNo TEXT PRIMARY KEY,Description TEXT ,Kg NUMERIC);
+    welcome_text = """-- SQLite Memo (Demo = click on green "->" and "@" icons)
+\n-- to CREATE a table 'items' and a table 'parts' :
+create table item (ItemNo, Description,Kg  , PRIMARY KEY (ItemNo));
+create table part(ParentNo, ChildNo , Description TEXT , Qty_per NUMERIC);
 \n-- to CREATE an index :
-CREATE INDEX items_id1 ON items(ItemNo ASC, Kg Desc);
-\n-- to CREATE a view :
-CREATE VIEW items_and_product as select * 
-   from items as i inner join products as p ON i.ItemNo=p.ItemNo;
+CREATE INDEX parts_id1 ON part(MasterNo Asc, ChildNo Desc);
+\n-- to CREATE a view 'v1':
+CREATE VIEW v1 as select * from item inner join part as p ON ItemNo=p.ParentNo;
+\n-- to INSERT datas 
+INSERT INTO item values("T","Ford",1000),("A","Merced",1250),("W","Wheel",9);
+INSERT INTO part select ItemNo,"W","needed",Kg/250*4 from item where Kg>250;
 \n-- to CREATE a Python embedded function :
 pydef mysqrt(s):
     return ("%s" %s**.5);
 \n-- to USE a python embedded function :
-select mysqrt(3), sqlite_version();"""
+select mysqrt(3) as Wow, sqlite_version() as How;
+\n-- to EXPORT a TABLE 
+-- click one TABLE's field, then click on 'Tools->Export the selected table'
+\n-- to export a REQUEST's result
+-- select the REQUEST aera, then click on 'Tools->Export the selected request', 
+-- example : select the end of this line: select sqlite_version() as How"""
     n.new_query_tab("Welcome", welcome_text )
     
     tk_win.mainloop()
