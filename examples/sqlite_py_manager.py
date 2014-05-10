@@ -40,6 +40,8 @@ class notebook_for_queries():
         self.fw_tabs = {} # tab_tk_id -> python tab object
         self.fw_labels = {} # tab_tk_id -> Scripting frame python object
         self.fw_results = {} # tab_tk_id ->   Results objects
+        self.fw_result_nbs = {} # tab_tk_id -> Notebook of Results
+        self.fw_result_nbs = {} # tab_tk_id -> Notebook of Results
         
         # Resize rules
         root.columnconfigure(0, weight=1)
@@ -57,11 +59,6 @@ class notebook_for_queries():
         #new "editable" script 
         f1 = ttk.Labelframe(fw_welcome, text='Script', width=200, height=100)
         fw_welcome.add(f1)
-        f1.grid_columnconfigure(0, weight=1)
-        f1.grid_rowconfigure(0, weight=1) 
-        #f1.grid(column=0, row=0, sticky='nsew', in_=fw_welcome )
-        #Create a top text box on this new frame, with 'query' definition in it
-        #    padding=(10, 2, 10, 6), text=(query))
         fw_label = ttk.tkinter.Text(f1 ,bd =1)
         
         
@@ -69,9 +66,7 @@ class notebook_for_queries():
         fw_label.configure(yscrollcommand = scroll.set)
         fw_label.insert(END, (query))
         fw_label.pack(side =LEFT, expand =YES, fill =BOTH, padx =2, pady =2)
-        #fw_label.grid(column=0, row=0, sticky=(N, S, E, W))
         scroll.pack(side =RIGHT, expand =NO, fill =BOTH, padx =2, pady =2)
-        #scroll.grid(column=1, row=0, sticky=(N, S, E, W))
  
         #keep tab reference  by tk id 
         working_tab_id = "." + fw_welcome._name
@@ -81,10 +76,24 @@ class notebook_for_queries():
         self.fw_labels[working_tab_id]  = fw_label        
         #keep   reference to result objects (by tk id)
         self.fw_results[working_tab_id]  = []        
+
+        #new "Results" Container 
+        fr = ttk.Labelframe(fw_welcome, text='Results', width=200, height=100)
+        fw_welcome.add(fr)
+        
+        #containing a notebook
+        fw_result_nb = Notebook(fr) 
+        fw_result_nb.pack(fill = 'both', expand=True)
+        # Resize rules
+        fw_welcome.columnconfigure(0, weight=1)
+        #keep reference to result_nb objects (by tk id)
+        self.fw_result_nbs[working_tab_id]  = fw_result_nb        
         
         #activate this tab print(self.notebook.tabs())
         self.notebook.select(working_tab_id) 
-
+        #workaround to have a visible result pane on initial launch
+        self.add_treeview(working_tab_id, "_", 
+        "","click on ('->') to run Script")
         return working_tab_id #gives back tk_id reference of the new tab
 
     def remove_treeviews(self, given_tk_id  ):
@@ -94,17 +103,21 @@ class notebook_for_queries():
             xx.destroy()
         self.fw_results[given_tk_id]=[]    
         
-    def add_treeview(self, given_tk_id,  columns, data):
+    def add_treeview(self, given_tk_id,  columns, data, title = "__", subt=""):
         "add a dataset result to the given tab tk_id"
+        #Get back reference to Notebooks tabs
         fw_welcome = self.fw_tabs[given_tk_id]
-        f2 = ttk.Labelframe(fw_welcome, 
-              text=('Result (%s lines)' % len(data)), width=200, height=100) 
-        fw_welcome.add(f2)
-        
+        fw_result_nb  =  self.fw_result_nbs[given_tk_id]           
+
+        #Create a Labelframe to contain new resultset and scrollbars 
+        f2 = ttk.Labelframe(fw_result_nb, 
+            text=('(%s lines) %s' % (len(data),subt)), width=200, height=100) 
+        f2.pack(fill = 'both', expand=True)
+        fw_result_nb.add(f2 , text = title)
+
         #keep   reference to result objects (by tk id)
         working_tab_id = "." + fw_welcome._name
         self.fw_results[working_tab_id].append(f2)       
-
         #Create a Treeview to show the query result
         tree_columns = columns
         if type(tree_columns)==type('ee'):
@@ -117,14 +130,13 @@ class notebook_for_queries():
         fw_vsb = Scrollbar(f2, orient="vertical", command=fw_Box.yview)
         fw_hsb = Scrollbar(f2, orient="horizontal", command=fw_Box.xview)
         fw_Box.configure(yscrollcommand=fw_vsb.set, xscrollcommand=fw_hsb.set)
-        fw_Box.grid(column=0, row=1, sticky='nsew', in_=f2)
-        fw_vsb.grid(column=1, row=1, sticky='ns', in_=f2)
-        fw_hsb.grid(column=0, row=2, sticky='new', in_=f2)
+        fw_Box.grid(column=0, row=0, sticky='nsew', in_=f2)
+        fw_vsb.grid(column=1, row=0, sticky='ns', in_=f2)
+        fw_hsb.grid(column=0, row=2, sticky='ew', in_=f2)
 
         #This new Treeview  may occupy all variable space
-        f2_row = (1+len(self.fw_results[working_tab_id]))
         f2.grid_columnconfigure(0, weight=1)
-        f2.grid_rowconfigure(f2_row, weight=1) 
+        f2.grid_rowconfigure(0, weight=1) 
 
         #feed Treeview Header
         for col in tuple(tree_columns):
@@ -394,15 +406,15 @@ def create_and_add_results(instructions, tab_tk_id):
     a_jouer = jouer.get_sqlsplit(instructions, remove_comments = True) 
     for instruction in a_jouer:
         instruction = instruction.replace(";","").strip(' \t\n\r')
-        rows=[]
-        rowtitles=("#N/A",)
+        rows=[] ; first_line = instruction.splitlines()[0]
+        rowtitles=("#N/A",); Tab_Title = "Qry"
         if instruction == "":
             #do nothing
             do_nothing = True
         
         elif instruction[:5] == "pydef" :
             instruction = instruction.strip('; \t\n\r')
-
+            Tab_Title = "Info"
             exec(instruction[2:]  , globals() , locals())
             firstline=(instruction[5:].splitlines()[0]).lstrip()
             firstline = firstline.replace(" ","") + "(" 
@@ -418,19 +430,21 @@ def create_and_add_results(instructions, tab_tk_id):
             rows.append((instr_add,))
         else:
           try :
-            cur = conn.execute(instruction)
-            my_curdescription=cur.description
-            rows = cur.fetchall()
-            #A query may have no result( like for an "update")
-            if    cur.description != None :
-                rowtitles = [row_info[0] for row_info in cur.description]
-            cur.close
-          except:
-            pass
-        
+              cur = conn.execute(instruction)
+              my_curdescription=cur.description
+              rows = cur.fetchall()
+              #A query may have no result( like for an "update")
+              if    cur.description != None :
+                  rowtitles = [row_info[0] for row_info in cur.description]
+              cur.close
+          except sqlite.Error as msg:#OperationalError
+              rowtitles=('Error !',)
+              rows=[(msg,)]
+              n.add_treeview(tab_tk_id, rowtitles, rows,"Error !", first_line )
+              break
         #end of one sql
         if rowtitles != ("#N/A",) :#rows!=[]  :
-              n.add_treeview(tab_tk_id, rowtitles, rows )
+              n.add_treeview(tab_tk_id, rowtitles, rows, Tab_Title, first_line)
 
 def del_tabresult():
    """delete active notebook tab's results"""
@@ -582,31 +596,30 @@ def import_csvtb():
               title="Choose a csv file (with header) to import ",
               filetypes=[("default","*.csv"),("other","*.txt"),("all","*.*")])
 
-    #Guessing encoding
+    #Guess encoding
     with open(csv_file, "rb") as f:
         data = f.read(5)
-    encodings = [locale.getdefaultlocale()[1], "utf8"]
     if data.startswith(b"\xEF\xBB\xBF"): # UTF-8 "BOM"
         encodings = ["utf-8-sig"]
     elif data.startswith(b"\xFF\xFE") or data.startswith(b"\xFE\xFF"): # UTF-16
-        encodings = ["utf16"]
+        encodings = ["utf-16"]
+    else: #in Windows, guessing utf-8 doesn't work, so we have to try
+        try:
+            with open(csv_file, encoding = "utf-8") as f:
+                preview = f.read(222222)  
+                encodings = ["utf-8"]
+        except:
+            encodings = [locale.getdefaultlocale()[1], "utf-8"]
 
-    #Guessing csv separator
-    def splitcsv(csv_in, separator = ",", string_limit = "'"):
-        "split a csv string respecting string delimiters"
-        x = csv_in.split(string_limit)
-        if len(x) == 1 : #Basic situation of 1 column
-            return csv_in.split(separator)
-        else: #Replace active separators per "<µ²é£>" , then split on "<µ²é£>" 
-            for i in range(0,len(x), 2):
-                x[i] = x[i].replace(separator, "<µ²é£>")
-            return string_limit.join(x).split("<µ²é£>")
-
+    #Guess Header and delimiter
     with open(csv_file, encoding = encodings[0]) as f:
-        preview = f.read(9999)
-    has_header = csv.Sniffer().has_header(preview)
-    dialect = csv.Sniffer().sniff(preview)
-    default_sep = dialect.delimiter
+        preview = f.read(9999)  
+    try:
+        dialect = csv.Sniffer().sniff(preview)
+        has_header = csv.Sniffer().has_header(preview)
+        default_sep = dialect.delimiter
+    except: #sniffer can fail
+        has_header = True ; default_sep=","    
 
     #Request form (see http://www.python-course.eu/tkinter_entry_widgets.php)
     fields = [('csv Name', csv_file )
@@ -644,10 +657,13 @@ def export_csv_ok(thetop, entries):
     
 def export_csv_dialog(query = "select 42 as known_facts"):
     "export csv dialog"
+    import os
     import locale
-    #Proposed encoding
-    encodings = list(set([locale.getdefaultlocale()[1],
-                         "utf-8-sig","utf16","utf8" ]))
+    #Proposed encoding (we favorize utf-8 the only future)
+    encodings = ["utf-8",locale.getdefaultlocale()[1],"utf-16","utf-8-sig"]
+    if os.name == 'nt':
+        encodings = ["utf-8-sig",locale.getdefaultlocale()[1],
+                         "utf-16","utf-8"]
     #Proposed csv separator
     default_sep=[",",";"]
 
@@ -716,7 +732,7 @@ def t_doubleClicked(event):
             if    cur.description != None :
                 rowtitles = [row_info[0] for row_info in cur.description]
                 #add result
-                n.add_treeview(new_tab_ref, rowtitles, rows)
+                n.add_treeview(new_tab_ref, rowtitles, rows,"Qry")
         except:
             pass #show nothing
         
@@ -927,14 +943,14 @@ if __name__ == '__main__':
  
     #Start with a memory Database
     new_db_mem()
-    
+
     #Propose a Demo
     welcome_text = """-- SQLite Memo (Demo = click on green "->" and "@" icons)
 \n-- to CREATE a table 'items' and a table 'parts' :
 create table item (ItemNo, Description,Kg  , PRIMARY KEY (ItemNo));
 create table part(ParentNo, ChildNo , Description TEXT , Qty_per NUMERIC);
 \n-- to CREATE an index :
-CREATE INDEX parts_id1 ON part(MasterNo Asc, ChildNo Desc);
+CREATE INDEX parts_id1 ON part(ParentNo Asc, ChildNo Desc);
 \n-- to CREATE a view 'v1':
 CREATE VIEW v1 as select * from item inner join part as p ON ItemNo=p.ParentNo;
 \n-- to INSERT datas 
