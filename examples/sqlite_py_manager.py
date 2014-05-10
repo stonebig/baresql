@@ -322,7 +322,9 @@ def add_things(root_id , what , attached_db = ""):
             cursor = conn.execute(sql )
             columns = [col_desc[0] for col_desc in cursor.description]
             cursor.close
-            definition=("select * from %s[%s] limit 999"% (attached_db,tab[1]))
+            #column by column select preparation
+            sel_cols = "select ["+"] , [".join(columns)+"] from "
+            definition = sel_cols + ("%s[%s] limit 999"% (attached_db,tab[1]))
             for c in range(len(columns)):
                 db_tree.insert(idc,"end",("%s%s.%s" % (attached_db,tab[1], c)),
                      text=columns[c],tags=('run',),
@@ -692,6 +694,8 @@ def export_csvtb():
         selitem = db_tree.selection()[0]
         text = db_tree.item(selitem, "text")
         action = db_tree.item(selitem, "values")[1]
+        if action[:-10] == " limit 999": # remove auto-limit for export
+              action = action[:-11] 
         if action != "":
               export_csv_dialog(action)  
               
@@ -724,17 +728,10 @@ def t_doubleClicked(event):
         parent_table = db_tree.item(parent_node, "text")
         #create a new tab 
         new_tab_ref = n.new_query_tab(parent_table, instruction)
-        try :
-            cur = conn.execute(action)
-            my_curdescription=cur.description
-            rows = cur.fetchall()
-            #A query may have no result(like for an "update", or a "fail")
-            if    cur.description != None :
-                rowtitles = [row_info[0] for row_info in cur.description]
-                #add result
-                n.add_treeview(new_tab_ref, rowtitles, rows,"Qry")
-        except:
-            pass #show nothing
+        #run-it
+        if action != "":
+           run_tab()          
+
         
 def actualize_db():
     "re-build database view"
@@ -893,6 +890,7 @@ if __name__ == '__main__':
                            
     menu_help.add_command(label='about',command = lambda : messagebox.showinfo(
        message="""Sqlite_py_manager is a small SQLite Browser written in Python
+            \n(version 2014-05-10b)
             \n(https://github.com/stonebig/baresql/blob/master/examples)"""))
 
     #Toolbar will be on TOP of the window (below the menu)
