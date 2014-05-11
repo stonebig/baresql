@@ -424,7 +424,8 @@ def import_csvtb_ok(thetop, entries):
     data_is  = entries[7][1]() #get back first lines
  
     #Aaargh, we need to guess numeric
-    typ = list(data_is.splitlines()[2].split(separ))
+    dlines = (data_is+'\n\n').splitlines()
+    typ = list(dlines[2].split(separ)) + [separ] + list(dlines[0].split(separ))
     for i in range(len(typ)):
         try:
             float (typ[i])
