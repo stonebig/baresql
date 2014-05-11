@@ -405,7 +405,6 @@ def attach_db():
        cur.close
        actualize_db()
 
-
 def import_csvtb_ok(thetop, entries):
     "read input values from tk formular"
     #file, table, separator, header, create, replace_data   
@@ -426,7 +425,7 @@ def import_csvtb_ok(thetop, entries):
     for i in range(len(typ)):
         try:
             float (typ[i].replace(decim,'.'))
-            typ[i] = 'NUMERIC'
+            typ[i] = 'REAL'
         except:
             typ[i] = 'TEXT'
     
@@ -437,20 +436,12 @@ def import_csvtb_ok(thetop, entries):
                            delimiter = separ, quotechar='"')
        #read first_line for headers and/or number of columns
        r = next(reader) ; 
-       if decim != ".":
-            if type(r) == type("e"):
-                if typ[i] == 'NUMERIC':
-                    r = r.replace( decim,'.')
-            else:
-                for i in range(len(r)):
-                    if typ[i] == 'NUMERIC' :
-                        r[i] = r[i].replace( decim,'.')
        sql="INSERT INTO %s  VALUES(%s);" % (
-               table_name,  ",".join(["?"]*len(r)))
+               table_name,  ", ".join(["?"]*len(r)))
        if creation:
               curs.execute("drop TABLE if exists [%s];" % table_name)
               if header:
-                  def_head=",".join([('[%s] %s'%(r[i],typ[i])) 
+                  def_head=" , ".join([('[%s] %s'%(r[i],typ[i])) 
                                      for i in range(len(r))])
                   curs.execute("CREATE TABLE [%s] (%s);"
                       % (table_name, def_head))
@@ -463,8 +454,18 @@ def import_csvtb_ok(thetop, entries):
               curs.execute("delete from [%s];" % table_name)
               replacing = False
        if not header:
-              curs.execute(sql, row)
-       curs.executemany(sql, reader)
+           if decim != "." and type(row) !=type("e"):
+               for i in range(len(row)): 
+                   row[i] = row[i].replace( decim,  ".") 
+           curs.execute(sql, row)
+       if decim != "." :
+           for row in reader:
+               if decim != "." and type(row) !=type ("e"):
+                   for i in range(len(row)): 
+                       row[i] = row[i].replace( decim,  ".") 
+               curs.execute(sql, row)
+       else :
+           curs.executemany(sql, reader)
        conn.commit()
        actualize_db()
  
@@ -755,7 +756,7 @@ def create_menu(root):
                            
     menu_help.add_command(label='about',command = lambda : messagebox.showinfo(
        message="""Sqlite_py_manager is a small SQLite Browser written in Python
-            \n(version 2014-05-11c)
+            \n(version 2014-05-12a)
             \n(https://github.com/stonebig/baresql/blob/master/examples)""")) 
 #F/Menubar part        
 #D/Toolbar part
@@ -965,7 +966,7 @@ if __name__ == '__main__':
     welcome_text = """-- SQLite Memo (Demo = click on green "->" and "@" icons)
 \n-- to CREATE a table 'items' and a table 'parts' :
 create table item (ItemNo, Description,Kg  , PRIMARY KEY (ItemNo));
-create table part(ParentNo, ChildNo , Description TEXT , Qty_per NUMERIC);
+create table part(ParentNo, ChildNo , Description TEXT , Qty_per REAL);
 \n-- to CREATE an index :
 CREATE INDEX parts_id1 ON part(ParentNo Asc, ChildNo Desc);
 \n-- to CREATE a view 'v1':
