@@ -15,8 +15,6 @@ global database_file
 global conn 
 global conn_inst
 
-#********* start of tkk part ***********
-    
 def sortby(tree, col, descending):
     """Sort a ttk treeview contents when a column is clicked on."""
     # grab values to sort
@@ -165,9 +163,6 @@ class notebook_for_queries():
                 except:
                     pass
          
-
-#********* end of tkk part ***********
-
 
 
 #tree objet subfunctions
@@ -410,6 +405,7 @@ def attach_db():
        cur.close
        actualize_db()
 
+
 def import_csvtb_ok(thetop, entries):
     "read input values from tk formular"
     #file, table, separator, header, create, replace_data   
@@ -417,21 +413,22 @@ def import_csvtb_ok(thetop, entries):
     csv_file = entries[0][1]().strip()
     table_name = entries[1][1]().strip()
     separ = entries[2][1]()
-    header = entries[3][1]()
-    creation = entries[4][1]()
-    replacing = entries[5][1]()
-    encoding_is = entries[6][1]()
-    data_is  = entries[7][1]() #get back first lines
+    decim = entries[3][1]()
+    header = entries[4][1]()
+    creation = entries[5][1]()
+    replacing = entries[6][1]()
+    encoding_is = entries[7][1]()
+    data_is  = entries[8][1]() #get back first lines
  
     #Aaargh, we need to guess numeric
     dlines = (data_is+'\n\n').splitlines()
     typ = list(dlines[2].split(separ)) + [separ] + list(dlines[0].split(separ))
     for i in range(len(typ)):
         try:
-            float (typ[i])
-            typ[i]='NUMERIC'
+            float (typ[i].replace(decim,'.'))
+            typ[i] = 'NUMERIC'
         except:
-            typ[i]='TEXT'
+            typ[i] = 'TEXT'
     
     if   csv_file != "(none)" and len(csv_file)*len(table_name)*len(separ)>1:
        thetop.destroy()
@@ -440,6 +437,14 @@ def import_csvtb_ok(thetop, entries):
                            delimiter = separ, quotechar='"')
        #read first_line for headers and/or number of columns
        r = next(reader) ; 
+       if decim != ".":
+            if type(r) == type("e"):
+                if typ[i] == 'NUMERIC':
+                    r = r.replace( decim,'.')
+            else:
+                for i in range(len(r)):
+                    if typ[i] == 'NUMERIC' :
+                        r[i] = r[i].replace( decim,'.')
        sql="INSERT INTO %s  VALUES(%s);" % (
                table_name,  ",".join(["?"]*len(r)))
        if creation:
@@ -559,11 +564,15 @@ def import_csvtb():
         default_sep = dialect.delimiter
     except: #sniffer can fail
         has_header = True ; default_sep=","    
-
+    default_decim = "."
+    if default_sep == ";" :
+        default_decim=","
+        
     #Request form (see http://www.python-course.eu/tkinter_entry_widgets.php)
     fields = [('csv Name', csv_file )
      ,('table Name', (csv_file.replace("\\","/")).split("/")[-1].split(".")[0])
      ,('column separator', default_sep)
+     ,('Decimal separator', default_decim)
      ,('Header line', has_header)
      ,('Create table', True)
      ,('Replace existing data', True)
@@ -746,7 +755,7 @@ def create_menu(root):
                            
     menu_help.add_command(label='about',command = lambda : messagebox.showinfo(
        message="""Sqlite_py_manager is a small SQLite Browser written in Python
-            \n(version 2014-05-11b)
+            \n(version 2014-05-11c)
             \n(https://github.com/stonebig/baresql/blob/master/examples)""")) 
 #F/Menubar part        
 #D/Toolbar part
