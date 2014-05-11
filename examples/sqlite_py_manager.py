@@ -1,7 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 import sqlite3 as sqlite 
-import sys, os
+import sys, os, locale
 import csv
 
 from tkinter import *
@@ -13,9 +13,10 @@ from tkinter import messagebox
 
 global database_file
 global conn 
-
+global conn_inst
 
 #********* start of tkk part ***********
+    
 def sortby(tree, col, descending):
     """Sort a ttk treeview contents when a column is clicked on."""
     # grab values to sort
@@ -164,118 +165,7 @@ class notebook_for_queries():
                 except:
                     pass
          
-def get_tk_icons():
-    "gives back the image of the whished icon "
 
-    #Inlined base 64 icons creation procedure :
-    # 1-create a toto.gif image of 24x24 size (for this example)
-    # 2-apply this transformation step : 
-    #    import base64
-    #    b64 = base64.encodestring(open(toto.gif,"rb").read())
-    #    print('gif_img':'''\\\n" + b64.decode("utf8") + "'''")
-    # 3-copy/paste the result in the code of your program as below
-
-    icons = {'run_img':'''\
-R0lGODlhGAAYAHAAACH5BAEAAPwALAAAAAAYABgAhwAAAAAAMwAAZgAAmQAAzAAA/wArAAArMwAr
-ZgArmQArzAAr/wBVAABVMwBVZgBVmQBVzABV/wCAAACAMwCAZgCAmQCAzACA/wCqAACqMwCqZgCq
-mQCqzACq/wDVAADVMwDVZgDVmQDVzADV/wD/AAD/MwD/ZgD/mQD/zAD//zMAADMAMzMAZjMAmTMA
-zDMA/zMrADMrMzMrZjMrmTMrzDMr/zNVADNVMzNVZjNVmTNVzDNV/zOAADOAMzOAZjOAmTOAzDOA
-/zOqADOqMzOqZjOqmTOqzDOq/zPVADPVMzPVZjPVmTPVzDPV/zP/ADP/MzP/ZjP/mTP/zDP//2YA
-AGYAM2YAZmYAmWYAzGYA/2YrAGYrM2YrZmYrmWYrzGYr/2ZVAGZVM2ZVZmZVmWZVzGZV/2aAAGaA
-M2aAZmaAmWaAzGaA/2aqAGaqM2aqZmaqmWaqzGaq/2bVAGbVM2bVZmbVmWbVzGbV/2b/AGb/M2b/
-Zmb/mWb/zGb//5kAAJkAM5kAZpkAmZkAzJkA/5krAJkrM5krZpkrmZkrzJkr/5lVAJlVM5lVZplV
-mZlVzJlV/5mAAJmAM5mAZpmAmZmAzJmA/5mqAJmqM5mqZpmqmZmqzJmq/5nVAJnVM5nVZpnVmZnV
-zJnV/5n/AJn/M5n/Zpn/mZn/zJn//8wAAMwAM8wAZswAmcwAzMwA/8wrAMwrM8wrZswrmcwrzMwr
-/8xVAMxVM8xVZsxVmcxVzMxV/8yAAMyAM8yAZsyAmcyAzMyA/8yqAMyqM8yqZsyqmcyqzMyq/8zV
-AMzVM8zVZszVmczVzMzV/8z/AMz/M8z/Zsz/mcz/zMz///8AAP8AM/8AZv8Amf8AzP8A//8rAP8r
-M/8rZv8rmf8rzP8r//9VAP9VM/9VZv9Vmf9VzP9V//+AAP+AM/+AZv+Amf+AzP+A//+qAP+qM/+q
-Zv+qmf+qzP+q///VAP/VM//VZv/Vmf/VzP/V////AP//M///Zv//mf//zP///wAAAAAAAAAAAAAA
-AAhTAIcIHEiwoMGDCBMqXKhwH8OF+yI+RBix4sSCFTNeFJix48WOIB+CHAlxJEmKJk8aTEkyw0qW
-GV0ehCmxIUuZNlUy1Cky5kaONX9yFEq0qNGHAQEAOw==
-'''
-    ,'refresh_img':'''\
-R0lGODlhGAAYAHAAACH5BAEAAPwALAAAAAAYABgAhwAAAAAAMwAAZgAAmQAAzAAA/wArAAArMwAr
-ZgArmQArzAAr/wBVAABVMwBVZgBVmQBVzABV/wCAAACAMwCAZgCAmQCAzACA/wCqAACqMwCqZgCq
-mQCqzACq/wDVAADVMwDVZgDVmQDVzADV/wD/AAD/MwD/ZgD/mQD/zAD//zMAADMAMzMAZjMAmTMA
-zDMA/zMrADMrMzMrZjMrmTMrzDMr/zNVADNVMzNVZjNVmTNVzDNV/zOAADOAMzOAZjOAmTOAzDOA
-/zOqADOqMzOqZjOqmTOqzDOq/zPVADPVMzPVZjPVmTPVzDPV/zP/ADP/MzP/ZjP/mTP/zDP//2YA
-AGYAM2YAZmYAmWYAzGYA/2YrAGYrM2YrZmYrmWYrzGYr/2ZVAGZVM2ZVZmZVmWZVzGZV/2aAAGaA
-M2aAZmaAmWaAzGaA/2aqAGaqM2aqZmaqmWaqzGaq/2bVAGbVM2bVZmbVmWbVzGbV/2b/AGb/M2b/
-Zmb/mWb/zGb//5kAAJkAM5kAZpkAmZkAzJkA/5krAJkrM5krZpkrmZkrzJkr/5lVAJlVM5lVZplV
-mZlVzJlV/5mAAJmAM5mAZpmAmZmAzJmA/5mqAJmqM5mqZpmqmZmqzJmq/5nVAJnVM5nVZpnVmZnV
-zJnV/5n/AJn/M5n/Zpn/mZn/zJn//8wAAMwAM8wAZswAmcwAzMwA/8wrAMwrM8wrZswrmcwrzMwr
-/8xVAMxVM8xVZsxVmcxVzMxV/8yAAMyAM8yAZsyAmcyAzMyA/8yqAMyqM8yqZsyqmcyqzMyq/8zV
-AMzVM8zVZszVmczVzMzV/8z/AMz/M8z/Zsz/mcz/zMz///8AAP8AM/8AZv8Amf8AzP8A//8rAP8r
-M/8rZv8rmf8rzP8r//9VAP9VM/9VZv9Vmf9VzP9V//+AAP+AM/+AZv+Amf+AzP+A//+qAP+qM/+q
-Zv+qmf+qzP+q///VAP/VM//VZv/Vmf/VzP/V////AP//M///Zv//mf//zP///wAAAAAAAAAAAAAA
-AAiXAPcJHEiwoMGDCBMqHKKwoUANDAlGdChwCJEMBDNcpKjxA5GJAj9qUKjRokaMBCGClEjEY8mD
-QyAajMkwg5KVBJOMLChz38aFOx9OxGmwZ8WgFC0S/Ehx4E+BGh2i3BfV6VSESvcZHRgz4cl9Q7oW
-/HjV6RAQJokghKg2I82WbRGiLVtya8KLIM8STYgUbN+mEgELHnwwIAA7
-'''
-    ,'deltab_img':'''\
-R0lGODlhGAAYAHAAACH5BAEAAPwALAAAAAAYABgAhwAAAAAAMwAAZgAAmQAAzAAA/wArAAArMwAr
-ZgArmQArzAAr/wBVAABVMwBVZgBVmQBVzABV/wCAAACAMwCAZgCAmQCAzACA/wCqAACqMwCqZgCq
-mQCqzACq/wDVAADVMwDVZgDVmQDVzADV/wD/AAD/MwD/ZgD/mQD/zAD//zMAADMAMzMAZjMAmTMA
-zDMA/zMrADMrMzMrZjMrmTMrzDMr/zNVADNVMzNVZjNVmTNVzDNV/zOAADOAMzOAZjOAmTOAzDOA
-/zOqADOqMzOqZjOqmTOqzDOq/zPVADPVMzPVZjPVmTPVzDPV/zP/ADP/MzP/ZjP/mTP/zDP//2YA
-AGYAM2YAZmYAmWYAzGYA/2YrAGYrM2YrZmYrmWYrzGYr/2ZVAGZVM2ZVZmZVmWZVzGZV/2aAAGaA
-M2aAZmaAmWaAzGaA/2aqAGaqM2aqZmaqmWaqzGaq/2bVAGbVM2bVZmbVmWbVzGbV/2b/AGb/M2b/
-Zmb/mWb/zGb//5kAAJkAM5kAZpkAmZkAzJkA/5krAJkrM5krZpkrmZkrzJkr/5lVAJlVM5lVZplV
-mZlVzJlV/5mAAJmAM5mAZpmAmZmAzJmA/5mqAJmqM5mqZpmqmZmqzJmq/5nVAJnVM5nVZpnVmZnV
-zJnV/5n/AJn/M5n/Zpn/mZn/zJn//8wAAMwAM8wAZswAmcwAzMwA/8wrAMwrM8wrZswrmcwrzMwr
-/8xVAMxVM8xVZsxVmcxVzMxV/8yAAMyAM8yAZsyAmcyAzMyA/8yqAMyqM8yqZsyqmcyqzMyq/8zV
-AMzVM8zVZszVmczVzMzV/8z/AMz/M8z/Zsz/mcz/zMz///8AAP8AM/8AZv8Amf8AzP8A//8rAP8r
-M/8rZv8rmf8rzP8r//9VAP9VM/9VZv9Vmf9VzP9V//+AAP+AM/+AZv+Amf+AzP+A//+qAP+qM/+q
-Zv+qmf+qzP+q///VAP/VM//VZv/Vmf/VzP/V////AP//M///Zv//mf//zP///wAAAAAAAAAAAAAA
-AAh7APcJHEiwoMGDCBMqXMjQm0ODDr01jEgwosSJD/dZvEgwjcePHiN+26iP4cCNDtOYPLlxH0iQ
-CVu6VEazpjKEKAWmsVnzIMqHO3neLNjSYlCeECkKtCh0aMWMLL01XRlx6sqZQq9iRXr1qE2tXnt2
-tboyLE2wZE2aVRYQADs=
-'''
-    ,'deltabresult_img':'''\
-R0lGODlhGAAYAHAAACH5BAEAAPwALAAAAAAYABgAhwAAAAAAMwAAZgAAmQAAzAAA/wArAAArMwAr
-ZgArmQArzAAr/wBVAABVMwBVZgBVmQBVzABV/wCAAACAMwCAZgCAmQCAzACA/wCqAACqMwCqZgCq
-mQCqzACq/wDVAADVMwDVZgDVmQDVzADV/wD/AAD/MwD/ZgD/mQD/zAD//zMAADMAMzMAZjMAmTMA
-zDMA/zMrADMrMzMrZjMrmTMrzDMr/zNVADNVMzNVZjNVmTNVzDNV/zOAADOAMzOAZjOAmTOAzDOA
-/zOqADOqMzOqZjOqmTOqzDOq/zPVADPVMzPVZjPVmTPVzDPV/zP/ADP/MzP/ZjP/mTP/zDP//2YA
-AGYAM2YAZmYAmWYAzGYA/2YrAGYrM2YrZmYrmWYrzGYr/2ZVAGZVM2ZVZmZVmWZVzGZV/2aAAGaA
-M2aAZmaAmWaAzGaA/2aqAGaqM2aqZmaqmWaqzGaq/2bVAGbVM2bVZmbVmWbVzGbV/2b/AGb/M2b/
-Zmb/mWb/zGb//5kAAJkAM5kAZpkAmZkAzJkA/5krAJkrM5krZpkrmZkrzJkr/5lVAJlVM5lVZplV
-mZlVzJlV/5mAAJmAM5mAZpmAmZmAzJmA/5mqAJmqM5mqZpmqmZmqzJmq/5nVAJnVM5nVZpnVmZnV
-zJnV/5n/AJn/M5n/Zpn/mZn/zJn//8wAAMwAM8wAZswAmcwAzMwA/8wrAMwrM8wrZswrmcwrzMwr
-/8xVAMxVM8xVZsxVmcxVzMxV/8yAAMyAM8yAZsyAmcyAzMyA/8yqAMyqM8yqZsyqmcyqzMyq/8zV
-AMzVM8zVZszVmczVzMzV/8z/AMz/M8z/Zsz/mcz/zMz///8AAP8AM/8AZv8Amf8AzP8A//8rAP8r
-M/8rZv8rmf8rzP8r//9VAP9VM/9VZv9Vmf9VzP9V//+AAP+AM/+AZv+Amf+AzP+A//+qAP+qM/+q
-Zv+qmf+qzP+q///VAP/VM//VZv/Vmf/VzP/V////AP//M///Zv//mf//zP///wAAAAAAAAAAAAAA
-AAiCADMJHJhpn8GDCBMaLIiQoEOBCvcxPAhx4cSJDRM+3PhQI8aIDT9WBOmxJEmTFD+eHGnxJEqL
-HGN6lCbNJU2WEhnSrIlwZ8uQCXfSfJkzqFCiFX32HFo0JFOSN0XGlOmUJ1RpOJM+Nag060ehVn+m
-NKp0LNB9Zbky9bo1YtSpcAUGBAA7
-'''
-    ,'newtab_img':'''\
-R0lGODlhGAAYAHAAACH5BAEAAPwALAAAAAAYABgAhwAAAAAAMwAAZgAAmQAAzAAA/wArAAArMwAr
-ZgArmQArzAAr/wBVAABVMwBVZgBVmQBVzABV/wCAAACAMwCAZgCAmQCAzACA/wCqAACqMwCqZgCq
-mQCqzACq/wDVAADVMwDVZgDVmQDVzADV/wD/AAD/MwD/ZgD/mQD/zAD//zMAADMAMzMAZjMAmTMA
-zDMA/zMrADMrMzMrZjMrmTMrzDMr/zNVADNVMzNVZjNVmTNVzDNV/zOAADOAMzOAZjOAmTOAzDOA
-/zOqADOqMzOqZjOqmTOqzDOq/zPVADPVMzPVZjPVmTPVzDPV/zP/ADP/MzP/ZjP/mTP/zDP//2YA
-AGYAM2YAZmYAmWYAzGYA/2YrAGYrM2YrZmYrmWYrzGYr/2ZVAGZVM2ZVZmZVmWZVzGZV/2aAAGaA
-M2aAZmaAmWaAzGaA/2aqAGaqM2aqZmaqmWaqzGaq/2bVAGbVM2bVZmbVmWbVzGbV/2b/AGb/M2b/
-Zmb/mWb/zGb//5kAAJkAM5kAZpkAmZkAzJkA/5krAJkrM5krZpkrmZkrzJkr/5lVAJlVM5lVZplV
-mZlVzJlV/5mAAJmAM5mAZpmAmZmAzJmA/5mqAJmqM5mqZpmqmZmqzJmq/5nVAJnVM5nVZpnVmZnV
-zJnV/5n/AJn/M5n/Zpn/mZn/zJn//8wAAMwAM8wAZswAmcwAzMwA/8wrAMwrM8wrZswrmcwrzMwr
-/8xVAMxVM8xVZsxVmcxVzMxV/8yAAMyAM8yAZsyAmcyAzMyA/8yqAMyqM8yqZsyqmcyqzMyq/8zV
-AMzVM8zVZszVmczVzMzV/8z/AMz/M8z/Zsz/mcz/zMz///8AAP8AM/8AZv8Amf8AzP8A//8rAP8r
-M/8rZv8rmf8rzP8r//9VAP9VM/9VZv9Vmf9VzP9V//+AAP+AM/+AZv+Amf+AzP+A//+qAP+qM/+q
-Zv+qmf+qzP+q///VAP/VM//VZv/Vmf/VzP/V////AP//M///Zv//mf//zP///wAAAAAAAAAAAAAA
-AAiBAJUJHKhsn8GDCPcBWHiwIEKCAhMqZGjQYUOLFg8uBNAwIUSHG0NuzLjvo0CRIklGTIgypEqS
-LCmW9AgT4caOD2tqlPlS4kOPNE0SBJpT6ECiF33iXFpRZ0WkTZU+/ZlT6kyqSaWqDGp0a1WtUEs6
-vcpUrFWvWZWijQq2aNePCQMCADs=
-'''
-    }  
-    
-    #transform in tk icons (avoids the dereferencing problem)
-    for key, value in icons.items():
-        icons[key] = ttk.tkinter.PhotoImage(data = value)
-    # gives back the whished icon in ttk ready format
-    return  icons
 #********* end of tkk part ***********
 
 
@@ -283,6 +173,8 @@ vcpUrFWvWZWijQq2aNePCQMCADs=
 #tree objet subfunctions
 def add_things(root_id , what , attached_db = ""):
     "fill a database structure tree on demand"
+    global conn
+    global conn_inst
     #Build list (objet_name, objet_text, creation_request) for 'what' category 
     if what=='master_table':
         sql= "SELECT 'sqlite_master', 'sqlite_master', '--(auto_created)'"
@@ -292,8 +184,23 @@ def add_things(root_id , what , attached_db = ""):
         sql = ("""SELECT  name as keytree, name, sql FROM %ssqlite_master 
             WHERE type='%s' order by name;""" % (  attached_db, what))
 
-    tables = conn.execute( sql ).fetchall()
-
+    if what !="pydef":
+        tables = conn.execute( sql ).fetchall()
+    else : #pydef specific case
+        tables=[]
+        try :
+            z = conn_inst[conn] 
+        except:       
+            z = conn_inst[conn] = {}
+        xdef=[i for i in z.keys()]
+        if len(xdef)>0:
+            idt = db_tree.insert(root_id,"end", "%s%s" % (attached_db, what)
+                   , text="%s (%s)" % (what, len(xdef)), values=("","") )   
+            for inst in xdef:
+                idet=conn_inst[conn][inst]
+                db_tree.insert(idt,"end",("pydef %s%s" % (attached_db,inst )),
+                    text="%s" %(inst),
+                    tags=('run',), values=(idet["pydef"],""))
     #if  'attached_database' category, remove the first (main) database 
     if what=='attached_databases':
         tables = tables[1:]
@@ -306,34 +213,35 @@ def add_things(root_id , what , attached_db = ""):
     #level 2 : create the 'founds' below  the 'what' node just created
     for tab in tables:
         definition = tab[2]
+        #Get Table or View fields list , prepare 'detailed query' sql3
+        sql2 = "SELECT * FROM  %s[%s] limit 0;" % (attached_db,tab[1])
+        try :
+            cursor = conn.execute(sql2 )
+            columns = [col_desc[0] for col_desc in cursor.description]
+            cursor.close
+            #column by column select preparation
+            sel_cols = "select ["+"] , [".join(columns)+"] from "
+            sql3 = sel_cols + ("%s[%s] limit 999"% (attached_db,tab[1]))
+        except :
+            columns = [] ;sql3 = ""
+        
         #include the description of it , specific for database_list
         if sql  == "PRAGMA database_list":
             definition = "ATTACH DATABASE '%s' as '%s'"%(tab[2],tab[1])
         idc = db_tree.insert(idt,"end",
                              "%s%s" % (attached_db,tab[0]) 
-                             ,text=tab[1] ,values=(definition,))
+                             ,text=tab[1] ,values=(definition,sql3))
 
         db_tree.insert(idc,"end",("%s%s.%s" % (attached_db,tab[1], -1)),
                  text = ['(Definition)'],tags=('run',), values=(definition,""))
         #level 3 : create the detail (columns) for each 'founds'
-        try :
-            #PRAGMA PRAGMA pandasql.table_info([items])
-            sql = "SELECT * FROM  %s[%s] limit 0;" % (attached_db,tab[1])
-            cursor = conn.execute(sql )
-            columns = [col_desc[0] for col_desc in cursor.description]
-            cursor.close
-            #column by column select preparation
-            sel_cols = "select ["+"] , [".join(columns)+"] from "
-            definition = sel_cols + ("%s[%s] limit 999"% (attached_db,tab[1]))
-            for c in range(len(columns)):
-                db_tree.insert(idc,"end",("%s%s.%s" % (attached_db,tab[1], c)),
-                     text=columns[c],tags=('run',),
-                     values=(definition,definition))
-        except :
-            pass
+        for c in range(len(columns)):
+            db_tree.insert(idc,"end",("%s%s.%s" % (attached_db,tab[1], c)),
+                 text=columns[c],tags=('run',),
+                 values=(sql3,sql3))
+
     return [i[1] for i in tables]
     
-#F/menu actions part
 def new_db():
     """create a new database"""
     global database_file
@@ -430,6 +338,20 @@ def create_and_add_results(instructions, tab_tk_id):
             for i in (instruction[2:].splitlines()) :
                rows.append((i,))             
             rows.append((instr_add,))
+
+            #manual housekeeping
+            global conn_inst
+            try :
+                conn_def = conn_inst[conn]
+            except:
+                conn_inst[conn] = {}
+                conn_def = conn_inst[conn]
+            try:    
+                 the_help= dict(globals(),**locals())[instr_name].__doc__
+                 conn_def[instr_name]={'parameters':instr_parms,
+                                       'help':the_help, 'pydef':instruction}
+            except:
+                pass
         else:
           try :
               cur = conn.execute(instruction)
@@ -499,7 +421,7 @@ def import_csvtb_ok(thetop, entries):
     creation = entries[4][1]()
     replacing = entries[5][1]()
     encoding_is = entries[6][1]()
-    data_is =  entries[7][1]() 
+ 
     if   csv_file != "(none)" and len(csv_file)*len(table_name)*len(separ)>1:
        thetop.destroy()
        curs = conn.cursor()
@@ -659,8 +581,6 @@ def export_csv_ok(thetop, entries):
     
 def export_csv_dialog(query = "select 42 as known_facts"):
     "export csv dialog"
-    import os
-    import locale
     #Proposed encoding (we favorize utf-8 the only future)
     encodings = ["utf-8",locale.getdefaultlocale()[1],"utf-16","utf-8-sig"]
     if os.name == 'nt':
@@ -680,7 +600,6 @@ def export_csv_dialog(query = "select 42 as known_facts"):
            ,('column separator',default_sep[0])
            ,('Header line',True)
            ,('Encoding',encodings[0]) ] 
-        nb_fields=len(fields)
  
         create_dialog(("Export to %s" % csv_file ), fields ,
                   ("Export",  export_csv_ok)                  
@@ -692,10 +611,9 @@ def export_csvtb():
     if selitems:
         #item_id = db_tree.focus()
         selitem = db_tree.selection()[0]
-        text = db_tree.item(selitem, "text")
         action = db_tree.item(selitem, "values")[1]
-        if action[:-10] == " limit 999": # remove auto-limit for export
-              action = action[:-11] 
+        if action[-10:] == " limit 999": # remove auto-limit for export
+              action = action[:-10] 
         if action != "":
               export_csv_dialog(action)  
               
@@ -718,16 +636,16 @@ def t_doubleClicked(event):
     "action on dbl_click on the Database structure" 
     selitems = db_tree.selection()
     if selitems:
-        selitem = selitems[0]
-        #item_id = db_tree.focus()
-        text = db_tree.item(selitem, "text")
-        instruction = db_tree.item(selitem, "values")[0]
-        action = db_tree.item(selitem, "values")[1]
+        instruction = db_tree.item(selitems[0], "values")[0]
+        action = db_tree.item(selitems[0], "values")[1]
+        default_text = db_tree.item(selitems[0], "text")
         #parent Table
-        parent_node =  db_tree.parent(selitem)
-        parent_table = db_tree.item(parent_node, "text")
+        parent_node =  db_tree.parent(selitems[0])
+        parent_text = db_tree.item(parent_node, "text")
+        if parent_text[-1] != ")":
+            default_text = parent_text
         #create a new tab 
-        new_tab_ref = n.new_query_tab(parent_table, instruction)
+        new_tab_ref = n.new_query_tab(default_text, instruction)
         #run-it
         if action != "":
            run_tab()          
@@ -749,7 +667,8 @@ def actualize_db():
                    values=(database_file,"")   )
 
     #add master_table, Tables, Views, Trigger, Index
-    for category in ['master_table', 'table', 'view', 'trigger', 'index']:
+    for category in ['master_table', 'table', 'view', 'trigger', 'index',
+    'pydef']:
         add_things(id0, category)
 
     #add attached databases, and get back attached table names
@@ -771,9 +690,144 @@ def quit_db():
    messagebox.askyesno(
 	   message='Are you sure you want to quit ?',
 	   icon='question', title='Install')
-   messagebox.showinfo(message='Have a good day')
+   #messagebox.showinfo(message='Have a good day')
    tk_win.destroy()
-#F/menu actions
+
+def create_menu(root):
+    menubar = Menu(root)
+    root['menu'] = menubar
+    
+    #feeding the top level menu
+    menu_file = Menu(menubar)
+    menubar.add_cascade(menu=menu_file, label='Database')
+
+    menu_tools = Menu(menubar)
+    menubar.add_cascade(menu=menu_tools, label='Tools')
+
+    menu_help = Menu(menubar)
+    menubar.add_cascade(menu=menu_help, label='?')
+
+    #feeding database sub-menu
+    menu_file.add_command(label='New Database', command=new_db)
+    menu_file.add_command(label='New In-Memory Database', command=new_db_mem)
+    menu_file.add_command(label='Connect to Database ...', command=open_db)
+    menu_file.add_command(label='Close Database', command=close_db)   
+    menu_file.add_separator()
+    menu_file.add_command(label='Attach Database', command=attach_db)   
+    menu_file.add_separator()
+    menu_file.add_command(label='Actualize', command=actualize_db)   
+    menu_file.add_separator()
+    menu_file.add_command(label='Quit', command=quit_db)   
+
+    #feeding table sub-menu
+    menu_tools.add_command(label='Import a CSV file',
+                           command=import_csvtb)   
+    menu_tools.add_command(label='Export the selected table',
+                           command=export_csvtb)   
+    menu_tools.add_separator()
+    menu_tools.add_command(label="Export the selected request",
+                           command=export_csvqr)   
+                           
+    menu_help.add_command(label='about',command = lambda : messagebox.showinfo(
+       message="""Sqlite_py_manager is a small SQLite Browser written in Python
+            \n(version 2014-05-10b)
+            \n(https://github.com/stonebig/baresql/blob/master/examples)""")) 
+#F/Menubar part        
+#D/Toolbar part
+def get_tk_icons():
+    "creates a dictionary of {iconname : icon_image}"
+
+    #to create this base 64 from a toto.gif image of 24x24 size do :
+    #    import base64
+    #    b64 = base64.encodestring(open("toto.gif","rb").read())
+    #    print("'gif_img':'''\\\n" + b64.decode("utf8") + "'''")
+    icons = {'run_img':'''\
+R0lGODdhGAAYAJkAADOqM////wCqMwAAACwAAAAAGAAYAAACM4SPqcvt7wJ8oU5W8025b9OFW0hO
+5EmdKKauSosKL9zJC21FsK27kG+qfUC5IciITConBQA7
+'''
+    ,'refresh_img':'''\
+R0lGODdhGAAYAJkAAP///zOqMwCqMwAAACwAAAAAGAAYAAACSoSPqcvt4aIJEFU5g7AUC9px1/JR
+3yYy4LqAils2IZdFMzCP6nhLd2/j6VqHD+1RAQKLHVfC+VwtcT3pNKOTYjTC4SOK+YbH5EYBADs=
+'''
+    ,'deltab_img':'''\
+R0lGODdhGAAYAKoAAP///8zVzP9VAGaAmf//zP9VMwAAAAAAACwAAAAAGAAYAAADVQi63P4wykmF
+dVbUzLLeF+B9zGCeZlaMBLWM1uC+I4CiUW0HfB9AMMXA13vALkPir1HzJIkYjsKjXHZCNEF1ltnO
+dsovGPp9+sTmYtk7S/PQbJc7kAAAOw==
+'''
+    ,'deltabresult_img':'''\
+R0lGODdhGAAYAJkAAP///5mqmf8AAAAAACwAAAAAGAAYAAACV4wfoMutyZA0DsBF372xzT95XBWN
+GSmmqIqN66mtbCy3swxbLprnrwkKAgWCT4MIBBCLmMXSIjIsi4fpYfZUEm0lx/Tm+3bHimxWpxKX
+n73E+YgExYXEAgA7
+'''
+    ,'newtab_img':'''\
+R0lGODdhGAAYAJkAAP///8zVzAAAAAAAACwAAAAAGAAYAAACToSPqcvtD6GYkU1R1z2h+2BdogAi
+X3eMYsmxrHqxxikb25zQ9A3UaMPz1XJE09BUbDl8uSMnOdOdoD3ph/pjMI1LrBOH5Da2ynHTKk0U
+AAA7
+'''  }  
+    
+    #transform in tk icons (avoids the dereferencing problem)
+    for key, value in icons.items():
+        icons[key] = ttk.tkinter.PhotoImage(data = value)
+    # gives back the whished icon in ttk ready format
+    return  icons
+    
+def createToolTip( widget, text ):
+    "Creates a tooptip box for a widget."
+    #www.daniweb.com/software-development/python/code/234888/tooltip-box
+    
+    def enter( event ):
+        global tipwindow
+        x = y = 0
+        try :
+            tipwindow = tipwindow
+        except:
+            tipwindow = None
+        if tipwindow or not text:
+            return
+        x, y, cx, cy = widget.bbox( "insert" )
+        x += widget.winfo_rootx() + 27
+        y += widget.winfo_rooty() + 27
+        # Creates a toplevel window
+        tipwindow = tw = Toplevel( widget )
+        # Leaves only the label and removes the app window
+        tw.wm_overrideredirect( 1 )
+        tw.wm_geometry( "+%d+%d" % ( x, y ) )
+        label = Label( tw, text = text, justify = LEFT,
+                       background = "#ffffe0", relief = SOLID, borderwidth = 1,
+                       font = ( "tahoma", "8", "normal" ) )
+        label.pack( ipadx = 1 )
+        
+    def close( event ):
+        global tipwindow
+        tw = tipwindow
+        tipwindow = None
+        if tw:
+            tw.destroy()
+            
+    widget.bind( "<Enter>", enter )
+    widget.bind( "<Leave>", close )    #creating the menu object
+
+
+def create_toolbar(root):
+    "Toolbar of the application"
+    toolbar = Frame(tk_win, relief=RAISED)
+    toolbar.pack(side=TOP, fill=X)
+    global tk_icon #otherwise they are destroyed before display
+    tk_icon = get_tk_icons()
+    
+    #list of image, action, tootip :
+    to_show=[('refresh_img', actualize_db, "Refresh Databases")
+            ,('run_img', run_tab, "Run Script Selection")
+            ,('deltab_img', del_tab, "Delete current tab")
+            ,('deltabresult_img', del_tabresult, "Clear tab Result")
+            ,('newtab_img', new_tab, "Create a New Tab")]
+    
+    for bu_def in to_show:
+        bu = Button(toolbar, image = tk_icon[bu_def[0]] ,
+            command = bu_def[1])
+        bu.pack(side=LEFT, padx=2, pady=2); createToolTip(bu, bu_def[2]) 
+    
+#F/Toolbar part
 
 #D/baresql token editor
 class baresql():
@@ -839,87 +893,26 @@ class baresql():
         if beg < length :
                sqls.append(sql[beg:])
         return sqls
-        #F/baresql token editor
+#F/baresql token editor
 
 if __name__ == '__main__':
 
-    global tk_win
     # create a tkk graphic interface
-    # with menu, toolbar, left 'Database' Frame, right 'Queries' Notebook 
-
-    #create main window tk_win
+    global tk_win
+    
+    #With a main window tk_win
     tk_win = Tk()
     tk_win.title('Sqlite_py_manager : browsing SQLite datas on the go')
     tk_win.option_add('*tearOff', FALSE)  # recommanded by tk documentation
     tk_win.minsize(600,200)               # minimal size
     
-    #creating the menu object
-    menubar = Menu(tk_win)
-    tk_win['menu'] = menubar
-    
-    #feeding the top level menu
-    menu_file = Menu(menubar)
-    menubar.add_cascade(menu=menu_file, label='Database')
+    #With a Menubar
+    create_menu(tk_win)
 
-    menu_tools = Menu(menubar)
-    menubar.add_cascade(menu=menu_tools, label='Tools')
+    #With a Toolbar
+    create_toolbar(tk_win)
 
-    menu_help = Menu(menubar)
-    menubar.add_cascade(menu=menu_help, label='?')
-
-    #feeding database sub-menu
-    menu_file.add_command(label='New Database', command=new_db)
-    menu_file.add_command(label='New In-Memory Database', command=new_db_mem)
-    menu_file.add_command(label='Connect to Database ...', command=open_db)
-    menu_file.add_command(label='Close Database', command=close_db)   
-    menu_file.add_separator()
-    menu_file.add_command(label='Attach Database', command=attach_db)   
-    menu_file.add_separator()
-    menu_file.add_command(label='Actualize', command=actualize_db)   
-    menu_file.add_separator()
-    menu_file.add_command(label='Quit', command=quit_db)   
-
-    #feeding table sub-menu
-    menu_tools.add_command(label='Import a CSV file',
-                           command=import_csvtb)   
-    menu_tools.add_command(label='Export the selected table',
-                           command=export_csvtb)   
-    menu_tools.add_separator()
-    menu_tools.add_command(label="Export the selected request",
-                           command=export_csvqr)   
-                           
-    menu_help.add_command(label='about',command = lambda : messagebox.showinfo(
-       message="""Sqlite_py_manager is a small SQLite Browser written in Python
-            \n(version 2014-05-10b)
-            \n(https://github.com/stonebig/baresql/blob/master/examples)"""))
-
-    #Toolbar will be on TOP of the window (below the menu)
-    toolbar = Frame(tk_win,   relief=RAISED)
-    toolbar.pack(side=TOP, fill=X)
-    tk_icon = get_tk_icons()
-    
-    #add refresh_button
-    Button(toolbar, image = tk_icon['refresh_img'] ,
-            command=actualize_db).pack(side=LEFT, padx=2, pady=2)
-    
-    #add run button 
-    Button(toolbar, image = tk_icon['run_img'] ,
-            command=run_tab).pack(side=LEFT, padx=2, pady=2)
-
-    #add dell_tab_button
-    Button(toolbar, image = tk_icon['deltab_img'] ,
-            command=del_tab).pack(side=LEFT, padx=2, pady=2)
-
-    #add dell_tabresult_button
-    Button(toolbar, image = tk_icon['deltabresult_img'] ,
-            command=del_tabresult).pack(side=LEFT, padx=2, pady=2)
-
-    #add new_tab_button
-    Button(toolbar, image = tk_icon['newtab_img'] ,
-            command=new_tab).pack(side=LEFT, padx=2, pady=2)
-
-    #create a paned window 'p' that contains 2 frames : 'Database', 'Queries'
-    # 'p' layout is managed by pack()
+    #With a Panedwindow of two frames: 'Database' and 'Queries'
     p  = ttk.Panedwindow(tk_win, orient=HORIZONTAL)
     p.pack(fill=BOTH, expand=1)
 
@@ -940,6 +933,7 @@ if __name__ == '__main__':
     db_tree.pack(fill = BOTH , expand = 1)
  
     #Start with a memory Database
+    conn_inst={}
     new_db_mem()
 
     #Propose a Demo
@@ -954,16 +948,22 @@ CREATE VIEW v1 as select * from item inner join part as p ON ItemNo=p.ParentNo;
 \n-- to INSERT datas 
 INSERT INTO item values("T","Ford",1000),("A","Merced",1250),("W","Wheel",9);
 INSERT INTO part select ItemNo,"W","needed",Kg/250*4 from item where Kg>250;
-\n-- to CREATE a Python embedded function :
-pydef mysqrt(s):
-    return ("%s" %s**.5);
+\n-- to CREATE a Python embedded function (enclose them by "py" and ";") :
+pydef py_sin(s):
+    "sinus function : example loading module, handling input/output as strings"
+    import math as py_math 
+    return ("%s" %  py_math.sin(s*1));
+pydef py_fib(n):
+   "fibonacci : example with function call (may only be internal) "
+   fib = lambda n: n if n < 2 else fib(n-1) + fib(n-2)
+   return("%s" % fib(n*1));
 \n-- to USE a python embedded function :
-select mysqrt(3) as Wow, sqlite_version() as How;
+select py_sin(1) as sinus_1, py_fib(8) as fib_8, sqlite_version() ;
 \n-- to EXPORT a TABLE 
 -- click one TABLE's field, then click on 'Tools->Export the selected table'
 \n-- to export a REQUEST's result
 -- select the REQUEST aera, then click on 'Tools->Export the selected request', 
--- example : select the end of this line: select sqlite_version() as How"""
+-- example : select the end of this line: select sqlite_version()  """
     n.new_query_tab("Welcome", welcome_text )
     
     tk_win.mainloop()
