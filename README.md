@@ -48,5 +48,7 @@ Version :
  * 0.5 : use SQLite true CTE if SQLite >= 3.8.3
  * 0.5.1 : bug correction + SQLite3.8.3 beta from 2013-01-22
  * 0.6 : first version with correct mysql support
+ * 0.6.1 : a pure standard-installation Python SQLite browser in examples\sqlite_py_manager.py 
+        https://github.com/stonebig/baresql/blob/master/examples/sqlite_py_manager.GIF
  * 0.7dev : support of pandas 0.14 sqlalchemy
- * 
+ 
