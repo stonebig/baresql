@@ -421,24 +421,35 @@ def import_csvtb_ok(thetop, entries):
     creation = entries[4][1]()
     replacing = entries[5][1]()
     encoding_is = entries[6][1]()
+    data_is  = entries[7][1]() #get back first lines
  
+    #Aaargh, we need to guess numeric
+    typ = list(data_is.splitlines()[2].split(separ))
+    for i in range(len(typ)):
+        try:
+            float (typ[i])
+            typ[i]='NUMERIC'
+        except:
+            typ[i]='TEXT'
+    
     if   csv_file != "(none)" and len(csv_file)*len(table_name)*len(separ)>1:
        thetop.destroy()
        curs = conn.cursor()
        reader = csv.reader(open(csv_file, 'r', encoding = encoding_is),
                            delimiter = separ, quotechar='"')
        #read first_line for headers and/or number of columns
-       row = next(reader) 
+       r = next(reader) ; 
        sql="INSERT INTO %s  VALUES(%s);" % (
-               table_name,  ",".join(["?"]*len(row)))
+               table_name,  ",".join(["?"]*len(r)))
        if creation:
               curs.execute("drop TABLE if exists [%s];" % table_name)
               if header:
-                  def_head=",".join([('[%s]' % i) for i in  row])
+                  def_head=",".join([('[%s] %s'%(r[i],typ[i])) 
+                                     for i in range(len(r))])
                   curs.execute("CREATE TABLE [%s] (%s);"
                       % (table_name, def_head))
               else:
-                  def_head=["c_"+("000" +str(i))[-3:] for i in range(len(row))]
+                  def_head=["c_"+("000" +str(i))[-3:] for i in range(len(r))]
                   def_head=",".join(def_head)
                   curs.execute("CREATE TABLE [%s] (%s);"
                       % (table_name, def_head))
@@ -451,7 +462,7 @@ def import_csvtb_ok(thetop, entries):
        conn.commit()
        actualize_db()
  
-def create_dialog(title, fields, buttons , datas):
+def create_dialog(title, fields, buttons , datas, data_modify = True):
     "create a formular with title, fields, button, data"
     #Drawing the request form 
     top = Toplevel()
@@ -466,14 +477,17 @@ def create_dialog(title, fields, buttons , datas):
     frame.grid(column = 2 , row = 0 , columnspan = 1 , 
               rowspan = len(fields)+1 , sticky = (N, S, E, W) )
 
-    #text of file
     fw_label = ttk.tkinter.Text(frame ,bd =1)
     fw_label.pack(side =LEFT, expand =YES, fill =BOTH)     
     scroll = ttk.Scrollbar(frame,   command = fw_label.yview)
     scroll.pack(side =RIGHT, fill =Y)
     fw_label.configure(yscrollcommand = scroll.set)
     fw_label.insert(END, datas[1])
-   
+    #text of file
+    status = "disabled"
+    if data_modify:
+        status = "normal"
+    fw_label.configure( state = status)
     #typ-it choices
     entries = []
     for field in fields:
@@ -556,7 +570,8 @@ def import_csvtb():
  
     create_dialog(("Importing %s" % csv_file ), fields  
                   , ("Import",  import_csvtb_ok)                  
-                  , ("first 3 lines " , "\n\n".join(preview.splitlines()[:3])))
+                  , ("first 3 lines " , "\n\n".join(preview.splitlines()[:3]))
+                  ,   False) #just to see
 
 
 def export_csv_ok(thetop, entries):
@@ -603,7 +618,7 @@ def export_csv_dialog(query = "select 42 as known_facts"):
  
         create_dialog(("Export to %s" % csv_file ), fields ,
                   ("Export",  export_csv_ok)                  
-                  , ("Data to export (MUST be 1 Request)" ,(query)))
+                  , ("Data to export (MUST be 1 Request)" ,(query)), True)
 
 def export_csvtb():
     "get table selected definition and launch cvs export dialog"
@@ -730,7 +745,7 @@ def create_menu(root):
                            
     menu_help.add_command(label='about',command = lambda : messagebox.showinfo(
        message="""Sqlite_py_manager is a small SQLite Browser written in Python
-            \n(version 2014-05-10b)
+            \n(version 2014-05-11b)
             \n(https://github.com/stonebig/baresql/blob/master/examples)""")) 
 #F/Menubar part        
 #D/Toolbar part
