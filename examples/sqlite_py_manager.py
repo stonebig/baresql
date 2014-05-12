@@ -170,9 +170,9 @@ def add_things(root_id , what , attached_db = ""):
     "fill a database structure tree on demand"
     global conn
     global conn_inst
-    #Build list (objet_name, objet_text, creation_request) for 'what' category 
+    #Build list for 'what' category: objet_name, objet_text, creation_request 
     if what=='master_table':
-        sql= "SELECT 'sqlite_master', 'sqlite_master', '--(auto_created)'"
+        sql = "SELECT 'sqlite_master', 'sqlite_master', '--(auto_created)'"
     elif what=='attached_databases':
         sql="PRAGMA database_list" 
     else:
@@ -223,17 +223,16 @@ def add_things(root_id , what , attached_db = ""):
         #include the description of it , specific for database_list
         if sql  == "PRAGMA database_list":
             definition = "ATTACH DATABASE '%s' as '%s'"%(tab[2],tab[1])
-        idc = db_tree.insert(idt,"end",
-                             "%s%s" % (attached_db,tab[0]) 
-                             ,text=tab[1] ,values=(definition,sql3))
+        idc = db_tree.insert(idt,"end",  "%s%s" % (attached_db,tab[0]) 
+                ,text=tab[1] ,tags=('run',), values=(definition,sql3))
 
         db_tree.insert(idc,"end",("%s%s.%s" % (attached_db,tab[1], -1)),
                  text = ['(Definition)'],tags=('run',), values=(definition,""))
         #level 3 : create the detail (columns) for each 'founds'
         for c in range(len(columns)):
             db_tree.insert(idc,"end",("%s%s.%s" % (attached_db,tab[1], c)),
-                 text=columns[c],tags=('run',),
-                 values=(sql3,sql3))
+                 text=columns[c],tags=('run_up',),
+                 values=('',''))
 
     return [i[1] for i in tables]
     
@@ -660,20 +659,19 @@ def export_csvqr():
               
 def t_doubleClicked(event):
     "action on dbl_click on the Database structure" 
-    selitems = db_tree.selection()
-    if selitems:
-        instruction = db_tree.item(selitems[0], "values")[0]
-        action = db_tree.item(selitems[0], "values")[1]
-        default_text = db_tree.item(selitems[0], "text")
-        #parent Table
-        parent_node =  db_tree.parent(selitems[0])
-        parent_text = db_tree.item(parent_node, "text")
-        if parent_text[-1] != ")":
-            default_text = parent_text
-        #create a new tab 
-        new_tab_ref = n.new_query_tab(default_text, instruction)
-        #run-it
-        if action != "":
+    #determine item to consider   
+    selitem = db_tree.focus() #the item having the focus  
+    seltag = db_tree.item(selitem,"tag")[0]  
+    if seltag == "run_up" : # if 'run-up' tag do as if dbl-click 1 level up 
+        selitem =  db_tree.parent(selitem)
+    #get final information : text, selection and action   
+    definition , action = db_tree.item(selitem, "values")
+    tab_text = db_tree.item(selitem, "text")
+    script = action if action !="" else definition
+
+    #create a new tab and run it if action suggest it
+    new_tab_ref = n.new_query_tab(tab_text, script)
+    if action != "": #run the new_tab created
            run_tab()          
 
         
@@ -682,6 +680,7 @@ def actualize_db():
 
     #bind double-click for easy user interaction
     db_tree.tag_bind('run', '<Double-1>', t_doubleClicked)
+    db_tree.tag_bind('run_up', '<Double-1>', t_doubleClicked)
     
     #delete existing tree entries before re-creating them
     for node  in db_tree.get_children():
