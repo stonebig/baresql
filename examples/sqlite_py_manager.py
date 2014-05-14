@@ -164,77 +164,6 @@ class notebook_for_queries():
                     pass
          
 
-
-#tree objet subfunctions
-def add_things(root_id , what , attached_db = ""):
-    "fill a database structure tree on demand"
-    global conn
-    global conn_inst
-    #Build list for 'what' category: objet_name, objet_text, creation_request 
-    if what=='master_table':
-        sql = "SELECT 'sqlite_master', 'sqlite_master', '--(auto_created)'"
-    elif what=='attached_databases':
-        sql="PRAGMA database_list" 
-    else:
-        sql = ("""SELECT  name as keytree, name, sql FROM %ssqlite_master 
-            WHERE type='%s' order by name;""" % (  attached_db, what))
-
-    if what !="pydef":
-        tables = conn.execute( sql ).fetchall()
-    else : #pydef specific case
-        tables=[]
-        try :
-            z = conn_inst[conn] 
-        except:       
-            z = conn_inst[conn] = {}
-        xdef=[i for i in z.keys()]
-        if len(xdef)>0:
-            idt = db_tree.insert(root_id,"end", "%s%s" % (attached_db, what)
-                   , text="%s (%s)" % (what, len(xdef)), values=("","") )   
-            for inst in xdef:
-                idet=conn_inst[conn][inst]
-                db_tree.insert(idt,"end",("pydef %s%s" % (attached_db,inst )),
-                    text="%s" %(inst),
-                    tags=('run',), values=(idet["pydef"],""))
-    #if  'attached_database' category, remove the first (main) database 
-    if what=='attached_databases':
-        tables = tables[1:]
-        
-    #level 1 : create  the "what" node (as not empty)
-    if len(tables)>0:
-        idt = db_tree.insert(root_id,"end", "%s%s" % (attached_db, what)
-                             , text="%s (%s)" % (  what, len(tables)) 
-                             , values=(conn,"") )
-    #level 2 : create the 'founds' below  the 'what' node just created
-    for tab in tables:
-        definition = tab[2]
-        #Get Table or View fields list , prepare 'detailed query' sql3
-        sql2 = "SELECT * FROM  %s[%s] limit 0;" % (attached_db,tab[1])
-        try :
-            cursor = conn.execute(sql2 )
-            columns = [col_desc[0] for col_desc in cursor.description]
-            cursor.close
-            #column by column select preparation
-            sel_cols = "select ["+"] , [".join(columns)+"] from "
-            sql3 = sel_cols + ("%s[%s] limit 999"% (attached_db,tab[1]))
-        except :
-            columns = [] ;sql3 = ""
-        
-        #include the description of it , specific for database_list
-        if sql  == "PRAGMA database_list":
-            definition = "ATTACH DATABASE '%s' as '%s'"%(tab[2],tab[1])
-        idc = db_tree.insert(idt,"end",  "%s%s" % (attached_db,tab[0]) 
-                ,text=tab[1] ,tags=('run',), values=(definition,sql3))
-
-        db_tree.insert(idc,"end",("%s%s.%s" % (attached_db,tab[1], -1)),
-                 text = ['(Definition)'],tags=('run',), values=(definition,""))
-        #level 3 : create the detail (columns) for each 'founds'
-        for c in range(len(columns)):
-            db_tree.insert(idc,"end",("%s%s.%s" % (attached_db,tab[1], c)),
-                 text=columns[c],tags=('run_up',),
-                 values=('',''))
-
-    return [i[1] for i in tables]
     
 def new_db():
     """create a new database"""
@@ -632,15 +561,17 @@ def export_csv_dialog(query = "select 42 as known_facts"):
 
 def export_csvtb():
     "get table selected definition and launch cvs export dialog"
-    selitems = db_tree.selection()
-    if selitems:
-        #item_id = db_tree.focus()
-        selitem = db_tree.selection()[0]
-        action = db_tree.item(selitem, "values")[1]
-        if action[-10:] == " limit 999": # remove auto-limit for export
-              action = action[:-10] 
-        if action != "":
-              export_csv_dialog(action)  
+    #determine item to consider   
+    selitem = db_tree.focus() #the item having the focus  
+    seltag = db_tree.item(selitem,"tag")[0]  
+    if seltag == "run_up" : # if 'run-up' tag do as if dbl-click 1 level up 
+        selitem =  db_tree.parent(selitem)
+    #get final information : selection, action  
+    definition , action = db_tree.item(selitem, "values")
+    if action[-10:] == " limit 999": # remove auto-limit for export
+          action = action[:-10] 
+    if action != "": #run the export_csv dialog
+          export_csv_dialog(action)  
               
 def export_csvqr():
     "get tab selected definition and launch cvs export dialog"
@@ -674,10 +605,84 @@ def t_doubleClicked(event):
     if action != "": #run the new_tab created
            run_tab()          
 
-        
+    
+def get_things(root_id , what , attached_db = "", tbl =""):
+    "gives back a database structure tree as a list"
+    global conn
+    global conn_inst
+    #Build list for 'what' category: 
+    # [objet_code, objet_text, creation_req, run_req, [level below] or '']
+    dico={'index': 'trigger',
+          'trigger': ("""select '{0:s}' || name, name, sql FROM 
+                     {0:s}sqlite_master WHERE type='{1:s}' order by name""",
+                     '{0:s}','{1:s}','{2:s}',''),
+          'master_table': ("""select '{0:s}sqlite_master','sqlite_master'""",
+                     '{0:s}','{1:s}','--auto-created','fields'),
+          'table': 'view',
+          'view': ("""select '{0:s}' || name, name, sql FROM {0:s}sqlite_master 
+                     WHERE type='{1:s}' order by name""",
+                     '{0:s}','{1:s}','{2:s}','fields'),
+          'fields': ("""pragma {0:s}table_info({2:s})""",
+                     '{1:s}','{1:s}', '',''),
+          'attached_databases': ("""PRAGMA database_list""",
+                     '{1:s}','{1:s}', "ATTACH DATABASE '{2:s}' as '{1:s}'",''),
+          'pydef': (""" #N/A""",
+                     '{0:s}','{0:s}','{1:s}', '')}
+    order = dico[what] if type(dico[what]) != type('e') else dico[dico[what]] 
+    Tables=[]
+    if what == "pydef": #pydef request is not sql
+        try :
+            z = conn_inst[conn] 
+        except:       
+            z = conn_inst[conn] = {}
+        resu = [[k , v['pydef']] for k, v in z.items()] 
+    else:
+        #others are sql request
+        resu = conn.execute(order[0].format(attached_db,what,tbl)).fetchall()
+        #result must be transformed in a list, and attached db 'main' removed
+        resu = list(resu) if what != 'attached_databases' else list(resu)[1:]
+    #general loop this level 
+    for rec in resu:
+        r0,r1,r2,r3,r4 = list(rec)[:5]+ ['']*(5-len(rec))
+        result = [order[i].format(r0,r1,r2,r3,r4) for i in range(1,5)]
+        if result[3] != '':
+            resu2 = get_things(root_id , result[3] , attached_db , result[1])
+            result[3] = resu2
+        Tables.append(result)
+    return Tables    
+
+
+def add_thingsnew(root_id , what , attached_db = ""): 
+    "add a sub-tree to database tree pan"
+    tables = get_things(root_id, what, attached_db) 
+    #level 1 : create  the "what" node (as not empty)
+    if len(tables)>0:
+        idt = db_tree.insert(root_id,"end", "%s%s" % (attached_db, what)
+                         , text="%s (%s)" % (  what, len(tables)) 
+                         , values=("","") )  
+        for tab in tables:
+            definition = tab[2] ; sql3 = ""
+            if tab[3] != '':
+                #Get Table or View fields list, for 'data query' sql3
+                columns = [col[0] for col in tab[3]]
+                #column by column select preparation
+                sel_cols = "select ["+"] , [".join(columns)+"] from "
+                sql3 = sel_cols + ("%s[%s] limit 999"% (attached_db,tab[1]))
+            idc = db_tree.insert(idt,"end",  "%s%s" % (attached_db,tab[0]) 
+                 ,text=tab[1],tags=('run',) , values=(definition,sql3))                    
+            if sql3 != "":
+                db_tree.insert(idc,"end",("%s%s.%s" % (attached_db,tab[1], -1)),
+                text = ['(Definition)'],tags=('run',), values=(definition,""))
+                #level 3 : create the detail (columns) for each 'founds'
+                for c in range(len(columns)):
+                    db_tree.insert(idc,"end",("%s%s.%s" % (attached_db,tab[1], c)),
+                    text=columns[c],tags=('run_up',),
+                    values=('',''))
+    return [i[1] for i in tables]
+
+
 def actualize_db():
     "re-build database view"
-
     #bind double-click for easy user interaction
     db_tree.tag_bind('run', '<Double-1>', t_doubleClicked)
     db_tree.tag_bind('run_up', '<Double-1>', t_doubleClicked)
@@ -694,20 +699,19 @@ def actualize_db():
     #add master_table, Tables, Views, Trigger, Index
     for category in ['master_table', 'table', 'view', 'trigger', 'index',
     'pydef']:
-        add_things(id0, category)
-
+        add_thingsnew(id0, category)
     #add attached databases, and get back attached table names
-    attached =  add_things(id0,'attached_databases' )
-    
+    attached =  add_thingsnew(id0,'attached_databases' )
     #redo for attached database
     for att_db in attached:
         #create initial node for attached table
         id0 = db_tree.insert("",'end', att_db + "(Attached)",
-                   text = att_db + " (attached database)", 
-                   values = (att_db,"")  )
+              text = att_db + " (attached database)", 
+               values = (att_db,"")  )
+                
         #add master_table, Tables, Views, Trigger, Index for each attached db
         for category in ['master_table', 'table', 'view', 'trigger', 'index']:
-            add_things(id0, category, att_db +".") 
+            add_thingsnew(id0, category, att_db +".")
 
 def quit_db():
    """quit application button"""
@@ -740,7 +744,7 @@ def create_menu(root):
     menu_file.add_separator()
     menu_file.add_command(label='Attach Database', command=attach_db)   
     menu_file.add_separator()
-    menu_file.add_command(label='Actualize', command=actualize_db)   
+    menu_file.add_command(label='Actualize Databases', command=actualize_db)   
     menu_file.add_separator()
     menu_file.add_command(label='Quit', command=quit_db)   
 
@@ -755,7 +759,7 @@ def create_menu(root):
                            
     menu_help.add_command(label='about',command = lambda : messagebox.showinfo(
        message="""Sqlite_py_manager is a small SQLite Browser written in Python
-            \n(version 2014-05-12a)
+            \n(version 2014-05-14a)
             \n(https://github.com/stonebig/baresql/blob/master/examples)""")) 
 #F/Menubar part        
 #D/Toolbar part
@@ -841,7 +845,7 @@ def create_toolbar(root):
     tk_icon = get_tk_icons()
     
     #list of image, action, tootip :
-    to_show=[('refresh_img', actualize_db, "Refresh Databases")
+    to_show=[('refresh_img', actualize_db, "Actualize Databases")
             ,('run_img', run_tab, "Run Script Selection")
             ,('deltab_img', del_tab, "Delete current tab")
             ,('deltabresult_img', del_tabresult, "Clear tab Result")
