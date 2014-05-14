@@ -40,7 +40,6 @@ class notebook_for_queries():
         self.fw_labels = {} # tab_tk_id -> Scripting frame python object
         self.fw_results = {} # tab_tk_id ->   Results objects
         self.fw_result_nbs = {} # tab_tk_id -> Notebook of Results
-        self.fw_result_nbs = {} # tab_tk_id -> Notebook of Results
         
         # Resize rules
         root.columnconfigure(0, weight=1)
@@ -95,12 +94,14 @@ class notebook_for_queries():
         "","click on ('->') to run Script")
         return working_tab_id #gives back tk_id reference of the new tab
 
+
     def remove_treeviews(self, given_tk_id  ):
         "remove results from given tab tk_id"
         for xx in self.fw_results[given_tk_id]:
             xx.grid_forget()
             xx.destroy()
         self.fw_results[given_tk_id]=[]    
+
         
     def add_treeview(self, given_tk_id,  columns, data, title = "__", subt=""):
         "add a dataset result to the given tab tk_id"
@@ -161,34 +162,30 @@ class notebook_for_queries():
                         ) < ilen and ilen<400 :
                         fw_Box.column(tree_columns[indx], width=ilen)
                 except:
-                    pass
-         
+                    pass     
 
     
-def new_db():
+def new_db(filename = ''):
     """create a new database"""
     global database_file
     global conn
-    import sqlite3 as sqlite 
-    filename_tk = filedialog.asksaveasfile(mode='w',defaultextension='.db',
+    if filename =='':
+        filename_tk = filedialog.asksaveasfile(mode='w',defaultextension='.db',
               title="Define a new database name and location",                          
               filetypes=[("default","*.db"),("other","*.db*"),("all","*.*")])
-    filename = filename_tk.name
-    filename_tk.close
-    if filename != "(none)":
+        filename = filename_tk.name
+        filename_tk.close
+    if filename != '':
         database_file =  filename 
         conn = sqlite.connect(database_file,
                    detect_types = sqlite.PARSE_DECLTYPES)
         actualize_db()
+
         
-def new_db_mem():
+def new_dbmem():
    """connect to a memory database """  
-   global database_file
-   global conn
-   database_file = ":memory:"
-   conn = sqlite.connect(":memory:",
-                   detect_types = sqlite.PARSE_DECLTYPES)
-   actualize_db()
+   new_db(":memory:")
+
                 
 def open_db():
    """open an existing database"""
@@ -307,9 +304,8 @@ def del_tab():
    #get active notebook tab
    nb = n.notebook
    active_tab_id = nb.select()
-
    #remove active tab from notebook
-   nb.forget(nb.select() )
+   nb.forget(active_tab_id )
 
 
 def new_tab():
@@ -321,13 +317,12 @@ def attach_db():
    """attach an existing database"""
    global database_file
    global conn
-   import sqlite3 as sqlite 
    filename = filedialog.askopenfilename(defaultextension='.db',
               title="Choose a database to attach ",    
               filetypes=[("default","*.db"),("other","*.db*"),("all","*.*")])
    attach = ((filename.replace("\\","/")).split("/")[-1]).split(".")[0]
 
-   if   filename != "(none)":
+   if   filename != '':
        attach_order = "ATTACH DATABASE '%s' as '%s' "%(filename,attach);
        cur = conn.execute(attach_order)
        cur.close
@@ -464,7 +459,6 @@ def create_dialog(title, fields, buttons , datas, data_modify = True):
       
 def import_csvtb():
     """import csv dialog (with guessing of encoding and separator)"""
-    import locale
     csv_file = filedialog.askopenfilename(defaultextension='.db',
               title="Choose a csv file (with header) to import ",
               filetypes=[("default","*.csv"),("other","*.txt"),("all","*.*")])
@@ -515,7 +509,6 @@ def import_csvtb():
 
 def export_csv_ok(thetop, entries):
     "export a csv table (action)"
-    import sqlite3
     global conn
     import csv
     csv_file    = entries[0][1]().strip()
@@ -526,8 +519,8 @@ def export_csv_ok(thetop, entries):
     cursor = conn.cursor()
     cursor.execute(query_is)
     thetop.destroy()
-    with open(csv_file, 'w', newline='', encoding = encoding_is) as fout:
-        writer = csv.writer(fout, delimiter=',',
+    with open(csv_file, 'w', newline = '', encoding = encoding_is) as fout:
+        writer = csv.writer(fout, delimiter = separ,
                             quotechar='"', quoting=csv.QUOTE_MINIMAL)
         if header:
             writer.writerow([i[0] for i in cursor.description]) # heading row
@@ -535,11 +528,10 @@ def export_csv_ok(thetop, entries):
     
 def export_csv_dialog(query = "select 42 as known_facts"):
     "export csv dialog"
-    #Proposed encoding (we favorize utf-8 the only future)
+    #Proposed encoding (we favorize utf-8 or utf-8-sig)
     encodings = ["utf-8",locale.getdefaultlocale()[1],"utf-16","utf-8-sig"]
-    if os.name == 'nt':
-        encodings = ["utf-8-sig",locale.getdefaultlocale()[1],
-                         "utf-16","utf-8"]
+    if os.name == 'nt': 
+        encodings = ["utf-8-sig",locale.getdefaultlocale()[1],"utf-16","utf-8"]
     #Proposed csv separator
     default_sep=[",",";"]
 
@@ -549,7 +541,7 @@ def export_csv_dialog(query = "select 42 as known_facts"):
     csv_file = filename_tk.name
     filename_tk.close
     if csv_file != "(none)":
-        #Request form (see http://www.python-course.eu/tkinter_entry_widgets.php)
+        #Request form (http://www.python-course.eu/tkinter_entry_widgets.php)
         fields = [('csv Name', csv_file )
            ,('column separator',default_sep[0])
            ,('Header line',True)
@@ -661,23 +653,23 @@ def add_thingsnew(root_id , what , attached_db = ""):
                          , text="%s (%s)" % (  what, len(tables)) 
                          , values=("","") )  
         for tab in tables:
+            #Level 2 : print object creation, and '(Definition)' if Table/View
             definition = tab[2] ; sql3 = ""
             if tab[3] != '':
-                #Get Table or View fields list, for 'data query' sql3
+                #it's a table : prepare a Query with names of each column
                 columns = [col[0] for col in tab[3]]
-                #column by column select preparation
                 sel_cols = "select ["+"] , [".join(columns)+"] from "
                 sql3 = sel_cols + ("%s[%s] limit 999"% (attached_db,tab[1]))
             idc = db_tree.insert(idt,"end",  "%s%s" % (attached_db,tab[0]) 
                  ,text=tab[1],tags=('run',) , values=(definition,sql3))                    
             if sql3 != "":
-                db_tree.insert(idc,"end",("%s%s.%s" % (attached_db,tab[1], -1)),
+                db_tree.insert(idc,"end",("%s%s.%s"% (attached_db,tab[1], -1)),
                 text = ['(Definition)'],tags=('run',), values=(definition,""))
-                #level 3 : create the detail (columns) for each 'founds'
+                #level 3 : Insert a line per column of the Table/View
                 for c in range(len(columns)):
-                    db_tree.insert(idc,"end",("%s%s.%s" % (attached_db,tab[1], c)),
-                    text=columns[c],tags=('run_up',),
-                    values=('',''))
+                    db_tree.insert(idc,"end",
+                       ("%s%s.%s" % (attached_db, tab[1], c)),
+                       text = columns[c], tags = ('run_up',), values = ('',''))
     return [i[1] for i in tables]
 
 
@@ -693,8 +685,8 @@ def actualize_db():
 
     #create initial node
     id0 = db_tree.insert("",0,"Database",
-                   text=(database_file.replace("\\","/")).split("/")[-1] , 
-                   values=(database_file,"")   )
+                   text = (database_file.replace("\\","/")).split("/")[-1] , 
+                   values = (database_file,"")   )
 
     #add master_table, Tables, Views, Trigger, Index
     for category in ['master_table', 'table', 'view', 'trigger', 'index',
@@ -706,12 +698,12 @@ def actualize_db():
     for att_db in attached:
         #create initial node for attached table
         id0 = db_tree.insert("",'end', att_db + "(Attached)",
-              text = att_db + " (attached database)", 
-               values = (att_db,"")  )
+              text = att_db + " (attached database)", values = (att_db,"")  )
                 
         #add master_table, Tables, Views, Trigger, Index for each attached db
         for category in ['master_table', 'table', 'view', 'trigger', 'index']:
             add_thingsnew(id0, category, att_db +".")
+
 
 def quit_db():
    """quit application button"""
@@ -719,7 +711,6 @@ def quit_db():
    messagebox.askyesno(
 	   message='Are you sure you want to quit ?',
 	   icon='question', title='Install')
-   #messagebox.showinfo(message='Have a good day')
    tk_win.destroy()
 
 def create_menu(root):
@@ -737,32 +728,29 @@ def create_menu(root):
     menubar.add_cascade(menu=menu_help, label='?')
 
     #feeding database sub-menu
-    menu_file.add_command(label='New Database', command=new_db)
-    menu_file.add_command(label='New In-Memory Database', command=new_db_mem)
-    menu_file.add_command(label='Connect to Database ...', command=open_db)
-    menu_file.add_command(label='Close Database', command=close_db)   
+    menu_file.add_command(label = 'New Database', command = new_db)
+    menu_file.add_command(label ='New In-Memory Database', command = new_dbmem)
+    menu_file.add_command(label = 'Connect to Database ...', command = open_db)
+    menu_file.add_command(label = 'Close Database', command = close_db)   
     menu_file.add_separator()
-    menu_file.add_command(label='Attach Database', command=attach_db)   
+    menu_file.add_command(label = 'Attach Database', command = attach_db)   
     menu_file.add_separator()
-    menu_file.add_command(label='Actualize Databases', command=actualize_db)   
-    menu_file.add_separator()
-    menu_file.add_command(label='Quit', command=quit_db)   
+    menu_file.add_command(label = 'Quit', command = quit_db)   
 
     #feeding table sub-menu
-    menu_tools.add_command(label='Import a CSV file',
-                           command=import_csvtb)   
-    menu_tools.add_command(label='Export the selected table',
-                           command=export_csvtb)   
+    menu_tools.add_command(label = 'Import a CSV file', command = import_csvtb)   
+    menu_tools.add_command(label = 'Export the selected table',
+                           command = export_csvtb)   
     menu_tools.add_separator()
-    menu_tools.add_command(label="Export the selected request",
-                           command=export_csvqr)   
+    menu_tools.add_command(label = "Export the selected request",
+                           command = export_csvqr)   
                            
     menu_help.add_command(label='about',command = lambda : messagebox.showinfo(
        message="""Sqlite_py_manager is a small SQLite Browser written in Python
             \n(version 2014-05-14a)
             \n(https://github.com/stonebig/baresql/blob/master/examples)""")) 
-#F/Menubar part        
-#D/Toolbar part
+
+
 def get_tk_icons():
     "creates a dictionary of {iconname : icon_image}"
 
@@ -834,7 +822,7 @@ def createToolTip( widget, text ):
             tw.destroy()
             
     widget.bind( "<Enter>", enter )
-    widget.bind( "<Leave>", close )    #creating the menu object
+    widget.bind( "<Leave>", close )
 
 
 def create_toolbar(root):
@@ -854,12 +842,11 @@ def create_toolbar(root):
     for bu_def in to_show:
         bu = Button(toolbar, image = tk_icon[bu_def[0]] ,
             command = bu_def[1])
-        bu.pack(side=LEFT, padx=2, pady=2); createToolTip(bu, bu_def[2]) 
-    
-#F/Toolbar part
+        bu.pack(side=LEFT, padx=2, pady=2); createToolTip(bu, bu_def[2])
 
-#D/baresql token editor
+
 class baresql():
+    "a tiny sql tokenizer"
     def __init__(self, connection="sqlite://", keep_log = False,
                  cte_inline = True):
         nothing_to_see = 1
@@ -922,7 +909,7 @@ class baresql():
         if beg < length :
                sqls.append(sql[beg:])
         return sqls
-#F/baresql token editor
+        
 
 if __name__ == '__main__':
 
