@@ -707,9 +707,6 @@ def create_menu(root):
     menu_file = Menu(menubar)
     menubar.add_cascade(menu=menu_file, label='Database')
 
-    menu_tools = Menu(menubar)
-    menubar.add_cascade(menu=menu_tools, label='Tools')
-
     menu_help = Menu(menubar)
     menubar.add_cascade(menu=menu_help, label='?')
 
@@ -722,15 +719,7 @@ def create_menu(root):
     menu_file.add_command(label = 'Attach Database', command = attach_db)   
     menu_file.add_separator()
     menu_file.add_command(label = 'Quit', command = quit_db)   
-
-    #feeding table sub-menu
-    menu_tools.add_command(label = 'Import a CSV file', command = import_csvtb)   
-    menu_tools.add_command(label = 'Export the selected table',
-                           command = export_csvtb)   
-    menu_tools.add_separator()
-    menu_tools.add_command(label = "Export the selected request",
-                           command = export_csvqr)   
-                           
+                          
     menu_help.add_command(label='about',command = lambda : messagebox.showinfo(
        message="""Sqlite_py_manager is a small SQLite Browser written in Python
             \n(version 2014-05-14a)
@@ -742,7 +731,7 @@ def get_tk_icons():
 
     #to create this base 64 from a toto.gif image of 24x24 size do :
     #    import base64
-    #    b64 = base64.encodestring(open("toto.gif","rb").read())
+    #    b64 = base64.encodestring(open(r"toto.gif","rb").read())
     #    print("'gif_img':'''\\\n" + b64.decode("utf8") + "'''")
     icons = {'run_img':'''\
 R0lGODdhGAAYAJkAADOqM////wCqMwAAACwAAAAAGAAYAAACM4SPqcvt7wJ8oU5W8025b9OFW0hO
@@ -766,7 +755,23 @@ n73E+YgExYXEAgA7
 R0lGODdhGAAYAJkAAP///8zVzAAAAAAAACwAAAAAGAAYAAACToSPqcvtD6GYkU1R1z2h+2BdogAi
 X3eMYsmxrHqxxikb25zQ9A3UaMPz1XJE09BUbDl8uSMnOdOdoD3ph/pjMI1LrBOH5Da2ynHTKk0U
 AAA7
-'''  }  
+'''
+    ,'csvin_img':'''\
+R0lGODdhGAAYAJkAAP///wAAADOqMwAAACwAAAAAGAAYAAACVYQPoZobeR4yEtZ3J511e845zah1
+oKV9WEQxqYOJX0rX9iHkd50LO+Iz9H5A35CI6wWRwiOz6WQqdU8mrLGYlVgZSM3UNYWyYeKKJEZk
+rl4aOxLLTgoAOw==
+'''
+    ,'csvex_img':'''\
+R0lGODdhGAAYAJkAAP///wAAADOqMwAAACwAAAAAGAAYAAACVYQPoZobeR4yEtZ3J511e845zah1
+oKV9WEQxqYOJX0rXtoDndp3jO6/7aXoC4UTnMxqCgKKSqVwmo9TWonGF1DIZLc3UNYWuYeOKJEZw
+ZemIzI11IQoAOw==
+'''
+    ,'qryex_img':'''\
+R0lGODdhGAAYAJkAAP///wAAADNm/zOqMywAAAAAGAAYAAACXIQPoZobeR4yEtZ3J511e845zah1
+oKV9WEQxqYOJX0rX9oDndp3jO6/7aXoD4UTnMxqCgKKSqVwmo9SD4GrFGq4CGvbbBQO03m4WQZ5w
+s+ZxWt12o+PVX/pORxQAADs=
+'''
+  }  
     
     #transform in tk icons (avoids the dereferencing problem)
     for key, value in icons.items():
@@ -820,10 +825,13 @@ def create_toolbar(root):
     
     #list of image, action, tootip :
     to_show=[('refresh_img', actualize_db, "Actualize Databases")
-            ,('run_img', run_tab, "Run Script Selection")
-            ,('deltab_img', del_tab, "Delete current tab")
-            ,('deltabresult_img', del_tabresult, "Clear tab Result")
-            ,('newtab_img', new_tab, "Create a New Tab")]
+         ,('run_img', run_tab, "Run Script Selection")
+         ,('deltab_img', del_tab, "Delete current tab")
+         ,('deltabresult_img', del_tabresult, "Clear tab Result")
+         ,('newtab_img', new_tab, "Create a New Tab")
+         ,('csvin_img', import_csvtb, "Import a CSV file into a Table")
+         ,('csvex_img', export_csvtb, "Export Selected Table to a CSV file")
+         ,('qryex_img', export_csvqr, "Export Selected Request to a CSV file")]
     
     for bu_def in to_show:
         bu = Button(toolbar, image = tk_icon[bu_def[0]] ,
