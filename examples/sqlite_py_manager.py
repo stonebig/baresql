@@ -515,7 +515,7 @@ def export_csv_ok(thetop, entries):
             writer.writerow([i[0] for i in cursor.description]) # heading row
         writer.writerows(cursor.fetchall())
     
-def export_csv_dialog(query = "select 42 as known_facts"):
+def export_csv_dialog(query = "select 42 as a", text="Choose .csv file name"):
     "export csv dialog"
     #Proposed encoding (we favorize utf-8 or utf-8-sig)
     encodings = ["utf-8",locale.getdefaultlocale()[1],"utf-16","utf-8-sig"]
@@ -525,7 +525,7 @@ def export_csv_dialog(query = "select 42 as known_facts"):
     default_sep=[",",";"]
 
     filename_tk = filedialog.asksaveasfile(mode='w',defaultextension='.db',
-              title="Choose .csv file name",                          
+              title = text,                          
               filetypes=[("default","*.csv"),("other","*.txt"),("all","*.*")])
     csv_file = filename_tk.name
     filename_tk.close
@@ -549,8 +549,9 @@ def export_csvtb():
         selitem =  db_tree.parent(selitem)
     #get final information : selection, action  
     definition , action = db_tree.item(selitem, "values")
+    title = ("Export Table [%s] to ?" %db_tree.item(selitem, "text"))
     if action != "": #run the export_csv dialog
-          export_csv_dialog(action)  
+          export_csv_dialog(action, title )   
               
 def export_csvqr():
     "get tab selected definition and launch cvs export dialog"
