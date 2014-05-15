@@ -238,11 +238,7 @@ def create_and_add_results(instructions, tab_tk_id):
         instruction = instruction.replace(";","").strip(' \t\n\r')
         rows=[] ; first_line = instruction.splitlines()[0]
         rowtitles=("#N/A",); Tab_Title = "Qry"
-        if instruction == "":
-            #do nothing
-            do_nothing = True
-        
-        elif instruction[:5] == "pydef" :
+        if instruction[:5] == "pydef" :
             instruction = instruction.strip('; \t\n\r')
             Tab_Title = "Info"
             exec(instruction[2:]  , globals() , locals())
@@ -272,10 +268,9 @@ def create_and_add_results(instructions, tab_tk_id):
                                        'help':the_help, 'pydef':instruction}
             except:
                 pass
-        else:
+        elif instruction != "":
           try :
               cur = conn.execute(instruction)
-              my_curdescription=cur.description
               rows = cur.fetchall()
               #A query may have no result( like for an "update")
               if    cur.description != None :
@@ -292,20 +287,15 @@ def create_and_add_results(instructions, tab_tk_id):
 
 def del_tabresult():
    """delete active notebook tab's results"""
-   #get active notebook tab
    nb = n.notebook  
-   active_tab_id = nb.select()
-   
    #remove active tab's results
-   n.remove_treeviews(active_tab_id)
+   n.remove_treeviews(nb.select())
 
 def del_tab():
    """delete active notebook tab's results"""
-   #get active notebook tab
    nb = n.notebook
-   active_tab_id = nb.select()
    #remove active tab from notebook
-   nb.forget(active_tab_id )
+   nb.forget(nb.select())
 
 
 def new_tab():
@@ -315,7 +305,6 @@ def new_tab():
 
 def attach_db():
    """attach an existing database"""
-   global database_file
    global conn
    filename = filedialog.askopenfilename(defaultextension='.db',
               title="Choose a database to attach ",    
@@ -560,8 +549,6 @@ def export_csvtb():
         selitem =  db_tree.parent(selitem)
     #get final information : selection, action  
     definition , action = db_tree.item(selitem, "values")
-    if action[-10:] == " limit 999": # remove auto-limit for export
-          action = action[:-10] 
     if action != "": #run the export_csv dialog
           export_csv_dialog(action)  
               
@@ -590,7 +577,7 @@ def t_doubleClicked(event):
     #get final information : text, selection and action   
     definition , action = db_tree.item(selitem, "values")
     tab_text = db_tree.item(selitem, "text")
-    script = action if action !="" else definition
+    script = action + " limit 999 " if action !="" else definition
 
     #create a new tab and run it if action suggest it
     new_tab_ref = n.new_query_tab(tab_text, script)
@@ -659,7 +646,7 @@ def add_thingsnew(root_id , what , attached_db = ""):
                 #it's a table : prepare a Query with names of each column
                 columns = [col[0] for col in tab[3]]
                 sel_cols = "select ["+"] , [".join(columns)+"] from "
-                sql3 = sel_cols + ("%s[%s] limit 999"% (attached_db,tab[1]))
+                sql3 = sel_cols + ("%s[%s]"% (attached_db,tab[1]))
             idc = db_tree.insert(idt,"end",  "%s%s" % (attached_db,tab[0]) 
                  ,text=tab[1],tags=('run',) , values=(definition,sql3))                    
             if sql3 != "":
@@ -692,10 +679,9 @@ def actualize_db():
     for category in ['master_table', 'table', 'view', 'trigger', 'index',
     'pydef']:
         add_thingsnew(id0, category)
-    #add attached databases, and get back attached table names
-    attached =  add_thingsnew(id0,'attached_databases' )
-    #redo for attached database
-    for att_db in attached:
+
+    #redo for attached databases
+    for att_db in add_thingsnew(id0,'attached_databases' ):
         #create initial node for attached table
         id0 = db_tree.insert("",'end', att_db + "(Attached)",
               text = att_db + " (attached database)", values = (att_db,"")  )
@@ -950,7 +936,7 @@ if __name__ == '__main__':
  
     #Start with a memory Database
     conn_inst={}
-    new_db_mem()
+    new_dbmem()
 
     #Propose a Demo
     welcome_text = """-- SQLite Memo (Demo = click on green "->" and "@" icons)
