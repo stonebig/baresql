@@ -56,8 +56,7 @@ class notebook_for_queries():
         f1 = ttk.Labelframe(fw_welcome, text='Script', width=200, height=100)
         fw_welcome.add(f1)
         fw_label = ttk.tkinter.Text(f1 ,bd =1)
-        
-        
+                
         scroll = ttk.Scrollbar(f1,   command = fw_label.yview)
         fw_label.configure(yscrollcommand = scroll.set)
         fw_label.insert(END, (query))
@@ -104,9 +103,8 @@ class notebook_for_queries():
         tree_columns = [columns] if type(columns)==type('e') else columns
         lines = [data] if type(data)==type('e') else data
 
-        #Get back reference to Notebooks tabs
+        #Get back reference to Notebooks of Results
         #(see http://www.astro.washington.edu/users/rowen/TkinterSummary.html)
-        fw_welcome = self.root.nametowidget(given_tk_id)
         fw_result_nb  =  self.fw_result_nbs[given_tk_id]           
 
         #Create a Labelframe to contain new resultset and scrollbars 
@@ -720,7 +718,7 @@ def create_menu(root):
                           
     menu_help.add_command(label='about',command = lambda : messagebox.showinfo(
        message="""Sqlite_py_manager is a small SQLite Browser written in Python
-            \n(version 2014-05-15a)
+            \n(version 2014-05-17a)
             \n(https://github.com/stonebig/baresql/blob/master/examples)""")) 
 
 
@@ -911,7 +909,7 @@ if __name__ == '__main__':
     
     #With a main window tk_win
     tk_win = Tk()
-    tk_win.title('Sqlite_py_manager : browsing SQLite datas on the go')
+    tk_win.title('sqlite_py_manager : browsing SQLite datas on the go')
     tk_win.option_add('*tearOff', FALSE)  # recommanded by tk documentation
     tk_win.minsize(600,200)               # minimal size
     
