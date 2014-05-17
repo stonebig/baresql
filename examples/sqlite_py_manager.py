@@ -583,11 +583,11 @@ def t_doubleClicked(event):
 
     
 def get_things(root_id , what , attached_db = "", tbl =""):
-    "gives back a database structure tree as a list"
+    "database objects of 'what': [objectCode, objectName, Definition,[Lvl -1]]"
     global conn
     global conn_inst
-    #Build list for 'what' category: 
-    # [objet_code, objet_text, creation_req, run_req, [level below] or '']
+    #dico = what : what qry, result id, result text, result crea, 'what' below 
+    #    or what : other 'what' specification to use in thi dictionnary
     dico={'index': 'trigger',
           'trigger': ("""select '{0:s}' || name, name, sql FROM 
                      {0:s}sqlite_master WHERE type='{1:s}' order by name""",
@@ -598,7 +598,8 @@ def get_things(root_id , what , attached_db = "", tbl =""):
           'view': ("""select '{0:s}' || name, name, sql FROM {0:s}sqlite_master 
                      WHERE type='{1:s}' order by name""",
                      '{0:s}','{1:s}','{2:s}','fields'),
-          'fields': ("pragma {0:s}table_info({2:s})", '{1:s}','{1:s}', '',''),
+          'fields': ("pragma {0:s}table_info({2:s})", 
+                     '{1:s} {2:s}','{1:s}', '',''),
           'attached_databases': ("PRAGMA database_list",
                      '{1:s}','{1:s}', "ATTACH DATABASE '{2:s}' as '{1:s}'",''),
           'pydef': ("#N/A", '{0:s}','{0:s}','{1:s}', '')
@@ -615,10 +616,10 @@ def get_things(root_id , what , attached_db = "", tbl =""):
         resu = conn.execute(order[0].format(attached_db,what,tbl)).fetchall()
         #result must be transformed in a list, and attached db 'main' removed
         resu = list(resu) if what != 'attached_databases' else list(resu)[1:]
-    #general loop this level 
+    #generate tree list for this 'what' category level :
+    #     [objectCode, objectName, Definition, [Level below] or '']
     for rec in resu:
-        r0,r1,r2,r3,r4 = list(rec)[:5]+ ['']*(5-len(rec))
-        result = [order[i].format(r0,r1,r2,r3,r4) for i in range(1,5)]
+        result = [order[i].format(*rec) for i in range(1,5)]
         if result[3] != '':
             resu2 = get_things(root_id , result[3] , attached_db , result[1])
             result[3] = resu2
@@ -632,16 +633,16 @@ def add_thingsnew(root_id , what , attached_db = ""):
     #level 1 : create  the "what" node (as not empty)
     if len(tables)>0:
         idt = db_tree.insert(root_id,"end", "%s%s" % (attached_db, what)
-                         , text="%s (%s)" % (  what, len(tables)) 
-                         , values=("","") )  
+                   , text="%s (%s)" % (what, len(tables)) , values=("","") )  
+
+        #Level 2 : print object creation, and '(Definition)' if Table/View
         for tab in tables:
-            #Level 2 : print object creation, and '(Definition)' if Table/View
             definition = tab[2] ; sql3 = ""
             if tab[3] != '':
                 #it's a table : prepare a Query with names of each column
                 columns = [col[0] for col in tab[3]]
-                sel_cols = "select ["+"] , [".join(columns)+"] from "
-                sql3 = sel_cols + ("%s[%s]"% (attached_db,tab[1]))
+                sql3 = "select ["+"] , [".join(columns)+"] from " + (
+                            "%s[%s]"% (attached_db,tab[1])  )
             idc = db_tree.insert(idt,"end",  "%s%s" % (attached_db,tab[0]) 
                  ,text=tab[1],tags=('run',) , values=(definition,sql3))                    
             if sql3 != "":
