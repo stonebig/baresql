@@ -36,9 +36,7 @@ class notebook_for_queries():
         self.root = root
         self.notebook = Notebook(root) #ttk.
         
-        self.fw_tabs = {} # tab_tk_id -> python tab object
         self.fw_labels = {} # tab_tk_id -> Scripting frame python object
-        self.fw_results = {} # tab_tk_id ->   Results objects
         self.fw_result_nbs = {} # tab_tk_id -> Notebook of Results
         
         # Resize rules
@@ -68,12 +66,9 @@ class notebook_for_queries():
  
         #keep tab reference  by tk id 
         working_tab_id = "." + fw_welcome._name
-        #keep tab reference to tab (by tk id)
-        self.fw_tabs[working_tab_id]  = fw_welcome        
+        
         #keep tab reference to script (by tk id)
         self.fw_labels[working_tab_id]  = fw_label        
-        #keep   reference to result objects (by tk id)
-        self.fw_results[working_tab_id]  = []        
 
         #new "Results" Container 
         fr = ttk.Labelframe(fw_welcome, text='Results', width=200, height=100)
@@ -97,34 +92,30 @@ class notebook_for_queries():
 
     def remove_treeviews(self, given_tk_id  ):
         "remove results from given tab tk_id"
-        for xx in self.fw_results[given_tk_id]:
+        myz  =  self.fw_result_nbs[given_tk_id]
+        for xx in list(myz.children.values()):
             xx.grid_forget()
             xx.destroy()
-        self.fw_results[given_tk_id]=[]    
 
         
     def add_treeview(self, given_tk_id,  columns, data, title = "__", subt=""):
         "add a dataset result to the given tab tk_id"
+        #Ensure we work on lists
+        tree_columns = [columns] if type(columns)==type('e') else columns
+        lines = [data] if type(data)==type('e') else data
+
         #Get back reference to Notebooks tabs
-        fw_welcome = self.fw_tabs[given_tk_id]
+        #(see http://www.astro.washington.edu/users/rowen/TkinterSummary.html)
+        fw_welcome = self.root.nametowidget(given_tk_id)
         fw_result_nb  =  self.fw_result_nbs[given_tk_id]           
 
         #Create a Labelframe to contain new resultset and scrollbars 
         f2 = ttk.Labelframe(fw_result_nb, 
-            text=('(%s lines) %s' % (len(data),subt)), width=200, height=100) 
+            text=('(%s lines) %s' % (len(lines),subt)), width=200, height=100) 
         f2.pack(fill = 'both', expand=True)
         fw_result_nb.add(f2 , text = title)
 
-        #keep   reference to result objects (by tk id)
-        working_tab_id = "." + fw_welcome._name
-        self.fw_results[working_tab_id].append(f2)       
-        #Create a Treeview to show the query result
-        tree_columns = columns
-        if type(tree_columns)==type('ee'):
-            tree_columns=[tree_columns]
-        if type(data)==type('ee'):
-            data=[data]
-        #data=queries
+        #lines=queries
         fw_Box = Treeview(f2, columns=tree_columns, show="headings",
                           padding=(2, 2, 2,2))
         fw_vsb = Scrollbar(f2, orient="vertical", command=fw_Box.yview)
@@ -145,10 +136,10 @@ class notebook_for_queries():
             fw_Box.column(col, width=font.Font().measure(col.title()))
 
         #feed Treeview Lines
-        for items in data:
-            item=items
-            if type(item)==type('ee'): # if line is a string, redo a tuple
-                item=(items,)
+        for items in lines:
+            # if line is a string, redo a tuple
+            item = (items,) if type(items)==type('ee') else items
+
             #replace line_return by space (grid don't like line_returns)            
             clean = lambda x: x.replace("\n"," ") if type(x)==type('ee') else x
             line_cells=tuple(clean(item[c]) for c  in range(len(tree_columns)))            
@@ -181,12 +172,7 @@ def new_db(filename = ''):
                    detect_types = sqlite.PARSE_DECLTYPES)
         actualize_db()
 
-        
-def new_dbmem():
-   """connect to a memory database """  
-   new_db(":memory:")
 
-                
 def open_db():
    """open an existing database"""
    global database_file
@@ -200,6 +186,8 @@ def open_db():
        conn = sqlite.connect(database_file,
                    detect_types = sqlite.PARSE_DECLTYPES)
        actualize_db()
+       
+       
 def close_db():
    """close database"""
    global conn
@@ -257,11 +245,11 @@ def create_and_add_results(instructions, tab_tk_id):
 
             #manual housekeeping
             global conn_inst
-            try :
-                conn_def = conn_inst[conn]
-            except:
+            if not 'conn_inst' in globals():
+                conn_inst={}
+            if not conn in conn_inst :
                 conn_inst[conn] = {}
-                conn_def = conn_inst[conn]
+            conn_def = conn_inst[conn]
             try:    
                  the_help= dict(globals(),**locals())[instr_name].__doc__
                  conn_def[instr_name]={'parameters':instr_parms,
@@ -285,11 +273,13 @@ def create_and_add_results(instructions, tab_tk_id):
         if rowtitles != ("#N/A",) :#rows!=[]  :
               n.add_treeview(tab_tk_id, rowtitles, rows, Tab_Title, first_line)
 
+
 def del_tabresult():
    """delete active notebook tab's results"""
    nb = n.notebook  
    #remove active tab's results
    n.remove_treeviews(nb.select())
+
 
 def del_tab():
    """delete active notebook tab's results"""
@@ -302,6 +292,7 @@ def new_tab():
    """delete active notebook tab's results"""
    #get active notebook tab
    n.new_query_tab("___","")
+
 
 def attach_db():
    """attach an existing database"""
@@ -316,6 +307,7 @@ def attach_db():
        cur = conn.execute(attach_order)
        cur.close
        actualize_db()
+
 
 def import_csvtb_ok(thetop, entries):
     "read input values from tk formular"
@@ -380,6 +372,7 @@ def import_csvtb_ok(thetop, entries):
            curs.executemany(sql, reader)
        conn.commit()
        actualize_db()
+
  
 def create_dialog(title, fields, buttons , datas, data_modify = True):
     "create a formular with title, fields, button, data"
@@ -445,6 +438,7 @@ def create_dialog(title, fields, buttons , datas, data_modify = True):
     #grid widgets
     content.grid( column=0, row=0,sticky=(N,W,S,E))
     top.grab_set()
+
       
 def import_csvtb():
     """import csv dialog (with guessing of encoding and separator)"""
@@ -455,7 +449,7 @@ def import_csvtb():
     #Guess encoding
     with open(csv_file, "rb") as f:
         data = f.read(5)
-    if data.startswith(b"\xEF\xBB\xBF"): # UTF-8 "BOM"
+    if data.startswith(b"\xEF\xBB\xBF"): # UTF-8 with a "BOM"
         encodings = ["utf-8-sig"]
     elif data.startswith(b"\xFF\xFE") or data.startswith(b"\xFE\xFF"): # UTF-16
         encodings = ["utf-16"]
@@ -514,6 +508,7 @@ def export_csv_ok(thetop, entries):
         if header:
             writer.writerow([i[0] for i in cursor.description]) # heading row
         writer.writerows(cursor.fetchall())
+
     
 def export_csv_dialog(query = "select 42 as a", text="Choose .csv file name"):
     "export csv dialog"
@@ -540,18 +535,20 @@ def export_csv_dialog(query = "select 42 as a", text="Choose .csv file name"):
                   ("Export",  export_csv_ok)                  
                   , ("Data to export (MUST be 1 Request)" ,(query)), True)
 
+
 def export_csvtb():
     "get table selected definition and launch cvs export dialog"
     #determine item to consider   
     selitem = db_tree.focus() #the item having the focus  
     seltag = db_tree.item(selitem,"tag")[0]  
-    if seltag == "run_up" : # if 'run-up' tag do as if dbl-click 1 level up 
+    if seltag == "run_up" : # if 'run-up', do as if dbl-click 1 level up 
         selitem =  db_tree.parent(selitem)
-    #get final information : selection, action  
+    #get final information 
     definition , action = db_tree.item(selitem, "values")
     title = ("Export Table [%s] to ?" %db_tree.item(selitem, "text"))
     if action != "": #run the export_csv dialog
           export_csv_dialog(action, title )   
+
               
 def export_csvqr():
     "get tab selected definition and launch cvs export dialog"
@@ -561,12 +558,13 @@ def export_csvqr():
     fw =n.fw_labels[active_tab_id]
     action = ""
     try :
-        action = (fw.get('sel.first', 'sel.last')) 
+        action = fw.get('sel.first', 'sel.last')
     except:
         action = fw.get(1.0,END)[:-1]   
 
     if action != "":
               export_csv_dialog(action)   
+
               
 def t_doubleClicked(event):
     "action on dbl_click on the Database structure" 
@@ -596,26 +594,24 @@ def get_things(root_id , what , attached_db = "", tbl =""):
           'trigger': ("""select '{0:s}' || name, name, sql FROM 
                      {0:s}sqlite_master WHERE type='{1:s}' order by name""",
                      '{0:s}','{1:s}','{2:s}',''),
-          'master_table': ("""select '{0:s}sqlite_master','sqlite_master'""",
+          'master_table': ("select '{0:s}sqlite_master','sqlite_master'",
                      '{0:s}','{1:s}','--auto-created','fields'),
           'table': 'view',
           'view': ("""select '{0:s}' || name, name, sql FROM {0:s}sqlite_master 
                      WHERE type='{1:s}' order by name""",
                      '{0:s}','{1:s}','{2:s}','fields'),
-          'fields': ("""pragma {0:s}table_info({2:s})""",
-                     '{1:s}','{1:s}', '',''),
-          'attached_databases': ("""PRAGMA database_list""",
+          'fields': ("pragma {0:s}table_info({2:s})", '{1:s}','{1:s}', '',''),
+          'attached_databases': ("PRAGMA database_list",
                      '{1:s}','{1:s}', "ATTACH DATABASE '{2:s}' as '{1:s}'",''),
-          'pydef': (""" #N/A""",
-                     '{0:s}','{0:s}','{1:s}', '')}
+          'pydef': ("#N/A", '{0:s}','{0:s}','{1:s}', '')
+          }
     order = dico[what] if type(dico[what]) != type('e') else dico[dico[what]] 
-    Tables=[]
+    Tables = []
     if what == "pydef": #pydef request is not sql
         try :
-            z = conn_inst[conn] 
+            resu = [[k , v['pydef']] for k, v in conn_inst[conn].items()]
         except:       
-            z = conn_inst[conn] = {}
-        resu = [[k , v['pydef']] for k, v in z.items()] 
+            resu = []
     else:
         #others are sql request
         resu = conn.execute(order[0].format(attached_db,what,tbl)).fetchall()
@@ -713,7 +709,8 @@ def create_menu(root):
 
     #feeding database sub-menu
     menu_file.add_command(label = 'New Database', command = new_db)
-    menu_file.add_command(label ='New In-Memory Database', command = new_dbmem)
+    menu_file.add_command(label ='New In-Memory Database', command = 
+                          lambda : new_db(":memory:"))
     menu_file.add_command(label = 'Connect to Database ...', command = open_db)
     menu_file.add_command(label = 'Close Database', command = close_db)   
     menu_file.add_separator()
@@ -723,7 +720,7 @@ def create_menu(root):
                           
     menu_help.add_command(label='about',command = lambda : messagebox.showinfo(
        message="""Sqlite_py_manager is a small SQLite Browser written in Python
-            \n(version 2014-05-14a)
+            \n(version 2014-05-15a)
             \n(https://github.com/stonebig/baresql/blob/master/examples)""")) 
 
 
@@ -779,7 +776,8 @@ s+ZxWt12o+PVX/pORxQAADs=
         icons[key] = ttk.tkinter.PhotoImage(data = value)
     # gives back the whished icon in ttk ready format
     return  icons
-    
+ 
+   
 def createToolTip( widget, text ):
     "Creates a tooptip box for a widget."
     #www.daniweb.com/software-development/python/code/234888/tooltip-box
@@ -834,10 +832,10 @@ def create_toolbar(root):
          ,('csvex_img', export_csvtb, "Export Selected Table to a CSV file")
          ,('qryex_img', export_csvqr, "Export Selected Request to a CSV file")]
     
-    for bu_def in to_show:
-        bu = Button(toolbar, image = tk_icon[bu_def[0]] ,
-            command = bu_def[1])
-        bu.pack(side=LEFT, padx=2, pady=2); createToolTip(bu, bu_def[2])
+    for image, action, tip in to_show:
+        bu = Button(toolbar, image = tk_icon[image] , command = action)
+        bu.pack(side=LEFT, padx=2, pady=2)
+        createToolTip(bu, tip)
 
 
 class baresql():
@@ -944,8 +942,7 @@ if __name__ == '__main__':
     db_tree.pack(fill = BOTH , expand = 1)
  
     #Start with a memory Database
-    conn_inst={}
-    new_dbmem()
+    new_db(":memory:")
 
     #Propose a Demo
     welcome_text = """-- SQLite Memo (Demo = click on green "->" and "@" icons)
