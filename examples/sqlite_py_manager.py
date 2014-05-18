@@ -361,9 +361,6 @@ def import_csvtb_ok(thetop, entries):
        if header:
            row = next(reader)
        if decim != "." : # one by one needed
-           for i in range(len(row)): 
-               row[i] = row[i].replace( decim,  ".") 
-           curs.execute(sql, row)
            for row in reader:
                if decim != "." and type(row) !=type ("e"):
                    for i in range(len(row)): 
@@ -752,7 +749,7 @@ def create_menu(root):
                           
     menu_help.add_command(label='about',command = lambda : messagebox.showinfo(
        message="""Sqlite_py_manager : a graphic SQLite Client in 1 Python file
-            \n(version 2014-05-18b)
+            \n(version 2014-05-18c)
             \n(https://github.com/stonebig/baresql/blob/master/examples)""")) 
 
 
