@@ -91,10 +91,10 @@ class notebook_for_queries():
 
     def remove_treeviews(self, given_tk_id  ):
         "remove results from given tab tk_id"
-        myz  =  self.fw_result_nbs[given_tk_id]
-        for xx in list(myz.children.values()):
-            xx.grid_forget()
-            xx.destroy()
+        if given_tk_id !='':
+            myz  =  self.fw_result_nbs[given_tk_id]
+            for xx in list(myz.children.values()):
+                xx.grid_forget() ; xx.destroy()
 
         
     def add_treeview(self, given_tk_id,  columns, data, title = "__", subt=""):
@@ -198,23 +198,22 @@ def close_db():
    
 def run_tab():
    """clear previous results and run current script of a tab"""
-   nb = n.notebook
-   active_tab_id = nb.select()
-   
-   #remove previous results
-   n.remove_treeviews(active_tab_id)
-   #get current selection (or all)
-   fw =n.fw_labels[active_tab_id]
-   script = ""
-   try :
-       script = (fw.get('sel.first', 'sel.last')) 
-   except:
-       script = fw.get(1.0,END)[:-1]   
+   active_tab_id = n.notebook.select()
+   if active_tab_id != '':
+       #remove previous results
+       n.remove_treeviews(active_tab_id)
+       #get current selection (or all)
+       fw =n.fw_labels[active_tab_id]
+       script = ""
+       try :
+           script = (fw.get('sel.first', 'sel.last')) 
+       except:
+           script = fw.get(1.0,END)[:-1]   
 
-   create_and_add_results(script, active_tab_id)
-   #workaround bug http://bugs.python.org/issue17511 (for python <=3.3.2)
-   #otherwise the focus is still set but not shown
-   fw.focus_set()
+       create_and_add_results(script, active_tab_id)
+       #workaround bug http://bugs.python.org/issue17511 
+       #otherwise the focus is still set but not shown (for python <=3.3.2)
+       fw.focus_set()
 
 def create_and_add_results(instructions, tab_tk_id):
     """execute instructions and add them to given tab results"""
@@ -274,16 +273,16 @@ def create_and_add_results(instructions, tab_tk_id):
 
 def del_tabresult():
    """delete active notebook tab's results"""
-   nb = n.notebook  
-   #remove active tab's results
-   n.remove_treeviews(nb.select())
+   given_tk_id = n.notebook.select()
+   if given_tk_id !='':
+       n.remove_treeviews(given_tk_id)
 
 
 def del_tab():
    """delete active notebook tab's results"""
-   nb = n.notebook
-   #remove active tab from notebook
-   nb.forget(nb.select())
+   given_tk_id = n.notebook.select()
+   if given_tk_id !='':
+       n.notebook.forget(given_tk_id)
 
 
 def new_tab():
@@ -306,61 +305,65 @@ def attach_db():
        cur.close
        actualize_db()
 
-
-def import_csvtb_ok(thetop, entries):
-    "read input values from tk formular"
-    #file, table, separator, header, create, replace_data   
-
-    csv_file = entries[0][1]().strip()
-    table_name = entries[1][1]().strip()
-    separ = entries[2][1]()
-    decim = entries[3][1]()
-    header = entries[4][1]()
-    creation = entries[5][1]()
-    replacing = entries[6][1]()
-    encoding_is = entries[7][1]()
-    data_is  = entries[8][1]() #get back first lines
- 
-    #Aaargh, we need to guess numeric
+def guess_sql_creation(table_name,  separ, decim, header, data_is):
+    "guessing sql creation request"
     dlines = (data_is+'\n\n').splitlines()
-    typ = list(dlines[2].split(separ)) + [separ] + list(dlines[0].split(separ))
-    for i in range(len(typ)):
+    r =   (dlines[0]+separ).split(separ)[:-1]
+    typ = (dlines[2]+separ).split(separ)[:-1]
+    for i in range(len(r)):
         try:
             float (typ[i].replace(decim,'.'))
             typ[i] = 'REAL'
         except:
             typ[i] = 'TEXT'
-    
+    if header:
+        head = ",\n".join([('[%s] %s'%(r[i],typ[i])) for i in range(len(r))])
+        sql_crea = ("CREATE TABLE [%s] (%s);"  % (table_name, head))
+    else:
+        head = ",".join(["c_"+("000" +str(i))[-3:] for i in range(len(r))])
+        sql_crea = ("CREATE TABLE [%s] (%s);"  % (table_name, head))
+    return sql_crea, typ   , head                 
+
+def import_csvtb_ok(thetop, entries):
+    "read input values from tk formular"
+    #build dico of result
+    d={}
+    for f in entries:
+        if type(f)!= type('e'):
+            d[f[0]]= f[1]()
+    #affect to variables
+    csv_file = d['csv Name'].strip()
+    table_name = d['table Name'].strip()
+    separ = d['column separator'] ; decim = d['Decimal separator']
+    header = d['Header line'] ; creation = d['Create table']
+    replacing = d['Replace existing data'] ; encoding_is = d['Encoding']
+    data = d["first 3 lines"] 
+    do_manu = d['use manual creation request'] ; manu = d["creation request"]
+    #Action
     if   csv_file != "(none)" and len(csv_file)*len(table_name)*len(separ)>1:
        thetop.destroy()
        curs = conn.cursor()
-       reader = csv.reader(open(csv_file, 'r', encoding = encoding_is),
-                           delimiter = separ, quotechar='"')
-       #read first_line for headers and/or number of columns
-       r = next(reader) ; 
-       sql="INSERT INTO %s  VALUES(%s);" % (
-               table_name,  ", ".join(["?"]*len(r)))
+       #Do initialization job
+       sql, typ, head = guess_sql_creation(table_name,separ,decim,header,data)
        if creation:
               curs.execute("drop TABLE if exists [%s];" % table_name)
-              if header:
-                  def_head=" , ".join([('[%s] %s'%(r[i],typ[i])) 
-                                     for i in range(len(r))])
-                  curs.execute("CREATE TABLE [%s] (%s);"
-                      % (table_name, def_head))
-              else:
-                  def_head=["c_"+("000" +str(i))[-3:] for i in range(len(r))]
-                  def_head=",".join(def_head)
-                  curs.execute("CREATE TABLE [%s] (%s);"
-                      % (table_name, def_head))
+              if do_manu:
+                  sql = ("CREATE TABLE [%s] (%s);"  % (table_name, manu))
+              curs.execute(sql )
        if replacing:
               curs.execute("delete from [%s];" % table_name)
-              replacing = False
-       if not header:
-           if decim != "." and type(row) !=type("e"):
-               for i in range(len(row)): 
-                   row[i] = row[i].replace( decim,  ".") 
+       sql="INSERT INTO %s  VALUES(%s);" % (
+               table_name,  ", ".join(["?"]*len(typ)))
+
+       reader = csv.reader(open(csv_file, 'r', encoding = encoding_is),
+                           delimiter = separ, quotechar='"')
+       #read first_line if needed to skip headers 
+       if header:
+           row = next(reader)
+       if decim != "." : # one by one needed
+           for i in range(len(row)): 
+               row[i] = row[i].replace( decim,  ".") 
            curs.execute(sql, row)
-       if decim != "." :
            for row in reader:
                if decim != "." and type(row) !=type ("e"):
                    for i in range(len(row)): 
@@ -371,73 +374,94 @@ def import_csvtb_ok(thetop, entries):
        conn.commit()
        actualize_db()
 
- 
-def create_dialog(title, fields, buttons , datas, data_modify = True):
+     
+def create_dialog(title, fields_in, buttons ):
     "create a formular with title, fields, button, data"
     #Drawing the request form 
     top = Toplevel()
     top.title(title)
-
-    content = ttk.Frame(top)
-    frame = ttk.LabelFrame(content, borderwidth = 5,  text = datas[0]
-     ,relief="sunken", width = 200, height = 100)
-
-    content.grid(column = 0, row = 0, sticky = (N, S, E, W))
-   
-    frame.grid(column = 2 , row = 0 , columnspan = 1 , 
-              rowspan = len(fields)+1 , sticky = (N, S, E, W) )
-
-    fw_label = ttk.tkinter.Text(frame ,bd =1)
-    fw_label.pack(side =LEFT, expand =YES, fill =BOTH)     
-    scroll = ttk.Scrollbar(frame,   command = fw_label.yview)
-    scroll.pack(side =RIGHT, fill =Y)
-    fw_label.configure(yscrollcommand = scroll.set)
-    fw_label.insert(END, datas[1])
-    #text of file
-    status = "disabled"
-    if data_modify:
-        status = "normal"
-    fw_label.configure( state = status)
-    #typ-it choices
-    entries = []
-    for field in fields:
-        ta_col = len(entries)
-        if field[1]==True or field[1]==False:
-            name_var = BooleanVar()
-            name = ttk.Checkbutton(content, text=field[0], 
-                                 variable = name_var, onvalue=True)
-            name_var.set(field[1])  
-            name.grid(column=1, row=ta_col,   sticky=(N, W), pady=5, padx=5)
-            entries.append((field[0], name_var.get))
-        else :
-            namelbl = ttk.Label(content,   text=field[0] )
-            namelbl.grid(column=0, row=ta_col, sticky=(N, E), pady=5, padx=5)
-            name_var = StringVar()
-            name = ttk.Entry(content, textvariable = name_var)
-            name_var.set(field[1])
-            name.grid(column=1, row=ta_col,   sticky=(N, E, W), pady=5, padx=5)
-            entries.append((field[0], name_var.get))
-    #add Text
-    entries.append(('data', lambda : fw_label.get('0.0',END)))
-    okbutton = ttk.Button(content, text = buttons[0], 
-            command = lambda  a = top, b = entries: (buttons[1])(a, b)) 
-    cancelbutton = ttk.Button(content, text = "Cancel", command = top.destroy)
-
-    okbutton.grid(column=0, row=len(entries))
-    cancelbutton.grid(column=1, row=len(entries))
-    for x in range(3):
-        Grid.columnconfigure(content, x,weight=1)
-    for y in range(3):
-        Grid.rowconfigure( content, y, weight=1)
-   
-    # Resize rules
     top.columnconfigure(0, weight=1)
     top.rowconfigure(0, weight=1)
-    #grid widgets
-    content.grid( column=0, row=0,sticky=(N,W,S,E))
+    #drawing global frame
+    content = ttk.Frame(top)
+    content.grid(column = 0, row = 0, sticky = (N, S, E, W))
+    content.columnconfigure(0, weight=1)
+    #fields = Horizontal FrameLabel, or
+    #         label, default_value, 'r' or 'w' default_width,default_height
+    fields = fields_in ; mf_col = -1 ; entries=[]
+    for f in range(len(fields)): #same structure out
+        field = fields[f]
+        if type(field) == type('e') or mf_col == -1:# A new horizontal frame           
+            mf_col += 1 ; ta_col = -1
+            if type(field) == type('e') and field == '' :
+                mf_frame = ttk.Frame(content, borderwidth = 1) 
+            else:
+                mf_frame = ttk.LabelFrame(content,borderwidth=1, text=field)
+            mf_frame.grid(column = 0, row = mf_col, sticky ='nsew')
+            Grid.rowconfigure(mf_frame, 0, weight=1)
+            content.rowconfigure(mf_col, weight=1)
+        if type(field) != type('e'): #A New Vertical Frame
+            ta_col += 1
+            Grid.columnconfigure(mf_frame, ta_col,weight=1);
+            packing_frame = ttk.Frame(mf_frame, borderwidth = 1)
+            packing_frame.grid(column = ta_col, row = 0 , sticky ='nsew')
+            Grid.columnconfigure(packing_frame, 0, weight=1)
+            #prepare width and height and writable status
+            width = field[3] if len(field)>3 else 30 
+            height = field[4] if len(field)>4 else 30 
+            status = "normal"
+            if len(field)>=3 and field[2] == "r":
+                   status = "disabled"
+            #switch between object types
+            if len(field)>4:
+                #datas
+                d_frame = ttk.LabelFrame(packing_frame, borderwidth = 5
+                       , width=width , height=height   , text= field[0]  )
+                d_frame.grid(column= 0, row= 0, sticky ='nsew', pady=1, padx=1)
+                Grid.rowconfigure(packing_frame, 0, weight=1)
+                fw_label = ttk.tkinter.Text(d_frame, bd=1, width=width, height=height)
+                fw_label.pack(side= LEFT, expand= YES, fill= BOTH)     
+                scroll = ttk.Scrollbar(d_frame, command = fw_label.yview)
+                scroll.pack(side = RIGHT, expand = NO, fill = Y)
+                fw_label.configure(yscrollcommand = scroll.set)
+                fw_label.insert(END, ("%s" %field[1]))
+                fw_label.configure( state = status)
+                Grid.rowconfigure(d_frame, 0, weight=1)
+                Grid.columnconfigure(d_frame, 0, weight=1)
+                #Data Text Extractor in the fields list ()
+                #see stackoverflow.com/questions/17677649 (loop and lambda)
+                fields[f][1] = lambda x=fw_label : x.get('1.0',END)
+            elif field[1]==True or field[1]==False:
+                #Boolean Field
+                name_var = BooleanVar()
+                name = ttk.Checkbutton(packing_frame, text=field[0], 
+                           variable = name_var, onvalue=True, state = status)
+                name_var.set(field[1])  
+                name.grid(column = 0, row = 0, sticky ='nsew', pady=5, padx=5)
+                fields[f][1] =  name_var.get 
+            else : #Text
+                namelbl = ttk.Label(packing_frame,   text=field[0] )
+                namelbl.grid(column=0, row=0, sticky='nsw', pady=5, padx=5)
+                name_var = StringVar()
+                name = ttk.Entry(packing_frame, textvariable = name_var,
+                                 width=width, state = status)
+                name_var.set(field[1])
+                name.grid(column=1, row=0,   sticky='nsw', pady=0, padx=10)
+                fields[f][1] = name_var.get 
+    # Adding button below the same way
+    mf_col += 1
+    packing_frame = ttk.LabelFrame(content, borderwidth = 5  )
+    packing_frame.grid(column = 0, row = mf_col, sticky ='nsew')
+    okbutton = ttk.Button(packing_frame, text = buttons[0], 
+            command = lambda  a = top, b = fields: (buttons[1])(a, b)) 
+    cancelbutton = ttk.Button(packing_frame, text = "Cancel",
+            command = top.destroy)
+    okbutton.grid(column=0, row=mf_col)
+    cancelbutton.grid(column=1, row=mf_col)
+    for x in range(3):
+        Grid.columnconfigure(packing_frame, x,weight=1)
     top.grab_set()
 
-      
 def import_csvtb():
     """import csv dialog (with guessing of encoding and separator)"""
     csv_file = filedialog.askopenfilename(defaultextension='.db',
@@ -472,31 +496,40 @@ def import_csvtb():
     if default_sep == ";" :
         default_decim=","
         
-    #Request form (see http://www.python-course.eu/tkinter_entry_widgets.php)
-    fields = [('csv Name', csv_file )
-     ,('table Name', (csv_file.replace("\\","/")).split("/")[-1].split(".")[0])
-     ,('column separator', default_sep)
-     ,('Decimal separator', default_decim)
-     ,('Header line', has_header)
-     ,('Create table', True)
-     ,('Replace existing data', True)
-     ,('Encoding', encodings[0]) ] 
+    #Request form : List of Horizontal Frame names 'FramLabel' 
+    #    or fields :  'Label', 'InitialValue',['r' or 'w', Width, Height]
+    table_name = (csv_file.replace("\\","/")).split("/")[-1].split(".")[0]
+    dlines = "\n\n".join(preview.splitlines()[:3])
+    guess_who = guess_sql_creation(table_name,
+           default_sep, default_decim, has_header, dlines)[2]
+    fields_in = ['',[ 'csv Name', csv_file , 'r', 100],''
+     ,['table Name', table_name]
+     ,['column separator', default_sep]
+     ,'',['Decimal separator', default_decim]
+     ,['Encoding', encodings[0] ]
+     ,'Fliflaps',['Header line', has_header]
+     ,['Create table', True  ]
+     ,['Replace existing data', True] ,''
+     ,["first 3 lines" , dlines,'r', 100,10] ,''
+     ,['use manual creation request', False],''
+     ,["creation request", guess_who,'w', 100,10]  ]
  
-    create_dialog(("Importing %s" % csv_file ), fields  
-                  , ("Import",  import_csvtb_ok)                  
-                  , ("first 3 lines " , "\n\n".join(preview.splitlines()[:3]))
-                  ,   False) #just to see
+    create_dialog(("Importing %s" % csv_file ), fields_in  
+                  , ("Import", import_csvtb_ok) )  
 
 
 def export_csv_ok(thetop, entries):
     "export a csv table (action)"
     global conn
     import csv
-    csv_file    = entries[0][1]().strip()
-    separ       = entries[1][1]()
-    header      = entries[2][1]()
-    encoding_is = entries[3][1]()
-    query_is     = entries[-1][1]() 
+    #build dico of result
+    d={}
+    for f in entries:
+        if type(f)!= type('e'):
+            d[f[0]]= f[1]()
+    csv_file=d['csv Name'].strip() ; separ = d['column separator']
+    header = d['Header line'] ; encoding_is = d['Encoding']
+    query_is = d["Data to export (MUST be 1 Request)"]
     cursor = conn.cursor()
     cursor.execute(query_is)
     thetop.destroy()
@@ -524,44 +557,43 @@ def export_csv_dialog(query = "select 42 as a", text="Choose .csv file name"):
     filename_tk.close
     if csv_file != "(none)":
         #Request form (http://www.python-course.eu/tkinter_entry_widgets.php)
-        fields = [('csv Name', csv_file )
-           ,('column separator',default_sep[0])
-           ,('Header line',True)
-           ,('Encoding',encodings[0]) ] 
+        fields = ['',['csv Name', csv_file,'w',100 ],''
+           ,['column separator',default_sep[0]]
+           ,['Header line',True]
+           ,['Encoding',encodings[0]], ''
+           ,["Data to export (MUST be 1 Request)" ,(query), 'w', 100,10] ] 
  
-        create_dialog(("Export to %s" % csv_file ), fields ,
-                  ("Export",  export_csv_ok)                  
-                  , ("Data to export (MUST be 1 Request)" ,(query)), True)
+        create_dialog(("Export to %s" % csv_file), fields ,
+                  ("Export",  export_csv_ok) )
 
 
 def export_csvtb():
     "get table selected definition and launch cvs export dialog"
     #determine item to consider   
     selitem = db_tree.focus() #the item having the focus  
-    seltag = db_tree.item(selitem,"tag")[0]  
-    if seltag == "run_up" : # if 'run-up', do as if dbl-click 1 level up 
-        selitem =  db_tree.parent(selitem)
-    #get final information 
-    definition , action = db_tree.item(selitem, "values")
-    title = ("Export Table [%s] to ?" %db_tree.item(selitem, "text"))
-    if action != "": #run the export_csv dialog
-          export_csv_dialog(action, title )   
+    if selitem !='':
+        seltag = db_tree.item(selitem,"tag")[0] 
+        if seltag == "run_up" : # if 'run-up', do as if dbl-click 1 level up 
+            selitem =  db_tree.parent(selitem)
+        #get final information 
+        definition , action = db_tree.item(selitem, "values")
+        title = ("Export Table [%s] to ?" %db_tree.item(selitem, "text"))
+        if action != "": #run the export_csv dialog
+            export_csv_dialog(action, title )   
 
               
 def export_csvqr():
     "get tab selected definition and launch cvs export dialog"
-    nb = n.notebook
-    active_tab_id = nb.select()
-    #get current selection (or all)
-    fw =n.fw_labels[active_tab_id]
-    action = ""
-    try :
-        action = fw.get('sel.first', 'sel.last')
-    except:
-        action = fw.get(1.0,END)[:-1]   
-
-    if action != "":
-              export_csv_dialog(action)   
+    active_tab_id = n.notebook.select()
+    if active_tab_id !='': #get current selection (or all)
+        fw =n.fw_labels[active_tab_id]
+        action = ""
+        try :
+            action = fw.get('sel.first', 'sel.last')
+        except:
+            action = fw.get(1.0,END)[:-1]   
+        if action != "":
+            export_csv_dialog(action)   
 
               
 def t_doubleClicked(event):
@@ -640,8 +672,9 @@ def add_thingsnew(root_id , what , attached_db = ""):
             definition = tab[2] ; sql3 = ""
             if tab[3] != '':
                 #it's a table : prepare a Query with names of each column
+                colnames = [col[1] for col in tab[3]]
                 columns = [col[0] for col in tab[3]]
-                sql3 = "select ["+"] , [".join(columns)+"] from " + (
+                sql3 = "select ["+"] , [".join(colnames)+"] from " + (
                             "%s[%s]"% (attached_db,tab[1])  )
             idc = db_tree.insert(idt,"end",  "%s%s" % (attached_db,tab[0]) 
                  ,text=tab[1],tags=('run',) , values=(definition,sql3))                    
@@ -718,13 +751,13 @@ def create_menu(root):
     menu_file.add_command(label = 'Quit', command = quit_db)   
                           
     menu_help.add_command(label='about',command = lambda : messagebox.showinfo(
-       message="""Sqlite_py_manager is a small SQLite Browser written in Python
-            \n(version 2014-05-17a)
+       message="""Sqlite_py_manager : a graphic SQLite Client in 1 Python file
+            \n(version 2014-05-18b)
             \n(https://github.com/stonebig/baresql/blob/master/examples)""")) 
 
 
 def get_tk_icons():
-    "creates a dictionary of {iconname : icon_image}"
+    "retuns a dictionary of {iconname : icon_in_tk_format} from B64 images"
 
     #to create this base 64 from a toto.gif image of 24x24 size do :
     #    import base64
@@ -768,19 +801,16 @@ R0lGODdhGAAYAJkAAP///wAAADNm/zOqMywAAAAAGAAYAAACXIQPoZobeR4yEtZ3J511e845zah1
 oKV9WEQxqYOJX0rX9oDndp3jO6/7aXoD4UTnMxqCgKKSqVwmo9SD4GrFGq4CGvbbBQO03m4WQZ5w
 s+ZxWt12o+PVX/pORxQAADs=
 '''
-  }  
-    
-    #transform in tk icons (avoids the dereferencing problem)
+  }   
+    #transform 'in place' base64 icons into tk_icons 
     for key, value in icons.items():
         icons[key] = ttk.tkinter.PhotoImage(data = value)
-    # gives back the whished icon in ttk ready format
     return  icons
  
    
 def createToolTip( widget, text ):
     "Creates a tooptip box for a widget."
-    #www.daniweb.com/software-development/python/code/234888/tooltip-box
-    
+    #www.daniweb.com/software-development/python/code/234888/tooltip-box   
     def enter( event ):
         global tipwindow
         x = y = 0
@@ -829,7 +859,7 @@ def create_toolbar(root):
          ,('newtab_img', new_tab, "Create a New Tab")
          ,('csvin_img', import_csvtb, "Import a CSV file into a Table")
          ,('csvex_img', export_csvtb, "Export Selected Table to a CSV file")
-         ,('qryex_img', export_csvqr, "Export Selected Request to a CSV file")]
+         ,('qryex_img', export_csvqr, "Export Selected Query to a CSV file")]
     
     for image, action, tip in to_show:
         bu = Button(toolbar, image = tk_icon[image] , command = action)
@@ -845,9 +875,8 @@ class baresql():
  
     def get_token(self, sql, start = 0):
         "return next token type and ending+1 from given sql start position"
-        length = len(sql)
-        i = start
-        token = 'TK_OTHER'
+        length = len(sql) ; 
+        i = start ; token = 'TK_OTHER'
         dico = {' ':'TK_SP', '\t':'TK_SP', '\n':'TK_SP', '\f':'TK_SP',
          '\r':'TK_SP', '(':'TK_LP', ')':'TK_RP', ';':'TK_SEMI', ',':'TK_COMMA',
          '/':'TK_OTHER', "'":'TK_STRING',"-":'TK_OTHER',
@@ -904,20 +933,15 @@ class baresql():
         
 
 if __name__ == '__main__':
-
-    # create a tkk graphic interface
+    # create a tkk graphic interface with a main window tk_win
     global tk_win
-    
-    #With a main window tk_win
     tk_win = Tk()
-    tk_win.title('sqlite_py_manager : browsing SQLite datas on the go')
+    tk_win.title('sqlite_py_manager: a graphic SQLite Client in 1 Python file')
     tk_win.option_add('*tearOff', FALSE)  # recommanded by tk documentation
     tk_win.minsize(600,200)               # minimal size
     
-    #With a Menubar
+    #With a Menubar and Toolbar
     create_menu(tk_win)
-
-    #With a Toolbar
     create_toolbar(tk_win)
 
     #With a Panedwindow of two frames: 'Database' and 'Queries'
@@ -926,31 +950,27 @@ if __name__ == '__main__':
 
     f_database = ttk.Labelframe(p, text='Databases', width=200 , height=100)
     p.add(f_database)
-
     f_queries = ttk.Labelframe(p, text='Queries', width=200, height=100)
     p.add(f_queries)
     
     #build tree view 't' inside the left 'Database' Frame
     db_tree = ttk.Treeview(f_database , displaycolumns = [], 
                            columns = ("detail","action"))
+    db_tree.tag_configure("run")
+    db_tree.pack(fill = BOTH , expand = 1)
 
     #create a  notebook 'n' inside the right 'Queries' Frame
     n = notebook_for_queries(f_queries , [])
-
-    db_tree.tag_configure("run")
-    db_tree.pack(fill = BOTH , expand = 1)
  
-    #Start with a memory Database
+    #Start with a memory Database and a welcome
     new_db(":memory:")
-
-    #Propose a Demo
     welcome_text = """-- SQLite Memo (Demo = click on green "->" and "@" icons)
 \n-- to CREATE a table 'items' and a table 'parts' :
 create table item (ItemNo, Description,Kg  , PRIMARY KEY (ItemNo));
 create table part(ParentNo, ChildNo , Description TEXT , Qty_per REAL);
 \n-- to CREATE an index :
 CREATE INDEX parts_id1 ON part(ParentNo Asc, ChildNo Desc);
-\n-- to CREATE a view 'v1':
+-- to CREATE a view 'v1':
 CREATE VIEW v1 as select * from item inner join part as p ON ItemNo=p.ParentNo;
 \n-- to INSERT datas 
 INSERT INTO item values("T","Ford",1000),("A","Merced",1250),("W","Wheel",9);
@@ -966,11 +986,10 @@ pydef py_fib(n):
    return("%s" % fib(n*1));
 \n-- to USE a python embedded function :
 select py_sin(1) as sinus_1, py_fib(8) as fib_8, sqlite_version() ;
-\n-- to EXPORT a TABLE 
--- click one TABLE's field, then click on 'Tools->Export the selected table'
-\n-- to export a REQUEST's result
--- select the REQUEST aera, then click on 'Tools->Export the selected request', 
--- example : select the end of this line: select sqlite_version()  """
+\n-- to EXPORT :
+--    a TABLE, select TABLE, then click on icon 'SQL->CSV'
+--    a QUERY RESULT, select the SCRIPT text, then click on icon '???->CSV', 
+-- example : select the end of this line: SELECT SQLITE_VERSION()  """
     n.new_query_tab("Welcome", welcome_text )
     
     tk_win.mainloop()
