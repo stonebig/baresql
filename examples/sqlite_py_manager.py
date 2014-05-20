@@ -305,11 +305,22 @@ def attach_db():
        cur.close
        actualize_db()
 
-def guess_sql_creation(table_name,  separ, decim, header, data_is):
+def splitcsv(csv_in, separator = ",", string_limit = "'"):
+            "split a csv string respecting string delimiters"
+            x = csv_in.split(string_limit)
+            if len(x) == 1 : #Basic situation of 1 column
+                return csv_in.split(separator)
+            else: #Replace active separators per "<µ²é£>" + split on "<µ²é£>" 
+                for i in range(0,len(x), 2):
+                    x[i] = x[i].replace(separator, "<µ²é£>")
+                return string_limit.join(x).split("<µ²é£>")
+
+
+def guess_sql_creation(table_name, separ, decim, header, data_is, quoter='"'):
     "guessing sql creation request"
     dlines = (data_is+'\n\n').splitlines()
-    r =   (dlines[0]+separ).split(separ)[:-1]
-    typ = (dlines[2]+separ).split(separ)[:-1]
+    r =   splitcsv((dlines[0]+separ),separ,quoter)[:-1]
+    typ = splitcsv((dlines[2]+separ),separ,quoter)[:-1]
     for i in range(len(r)):
         try:
             float (typ[i].replace(decim,'.'))
@@ -337,39 +348,40 @@ def import_csvtb_ok(thetop, entries):
     separ = d['column separator'] ; decim = d['Decimal separator']
     header = d['Header line'] ; creation = d['Create table']
     replacing = d['Replace existing data'] ; encoding_is = d['Encoding']
-    data = d["first 3 lines"] 
+    data = d["first 3 lines"]  ; quotechar = d['string delimiter']
     do_manu = d['use manual creation request'] ; manu = d["creation request"]
     #Action
     if   csv_file != "(none)" and len(csv_file)*len(table_name)*len(separ)>1:
-       thetop.destroy()
-       curs = conn.cursor()
-       #Do initialization job
-       sql, typ, head = guess_sql_creation(table_name,separ,decim,header,data)
-       if creation:
-              curs.execute("drop TABLE if exists [%s];" % table_name)
-              if do_manu:
-                  sql = ("CREATE TABLE [%s] (%s);"  % (table_name, manu))
-              curs.execute(sql )
-       if replacing:
-              curs.execute("delete from [%s];" % table_name)
-       sql="INSERT INTO %s  VALUES(%s);" % (
+        thetop.destroy()
+        curs = conn.cursor()
+        #Do initialization job
+        sql, typ, head = guess_sql_creation(table_name,separ,decim,header,data, quotechar)
+        if creation:
+            curs.execute("drop TABLE if exists [%s];" % table_name)
+            if do_manu:
+                sql = ("CREATE TABLE [%s] (%s);"  % (table_name, manu))
+                print(sql)
+            curs.execute(sql )
+        if replacing:
+            curs.execute("delete from [%s];" % table_name)
+        sql="INSERT INTO [%s]  VALUES(%s);" % (
                table_name,  ", ".join(["?"]*len(typ)))
 
-       reader = csv.reader(open(csv_file, 'r', encoding = encoding_is),
+        reader = csv.reader(open(csv_file, 'r', encoding = encoding_is),
                            delimiter = separ, quotechar='"')
-       #read first_line if needed to skip headers 
-       if header:
-           row = next(reader)
-       if decim != "." : # one by one needed
-           for row in reader:
+        #read first_line if needed to skip headers 
+        if header:
+            row = next(reader)
+        if decim != "." : # one by one needed
+            for row in reader:
                if decim != "." and type(row) !=type ("e"):
                    for i in range(len(row)): 
                        row[i] = row[i].replace( decim,  ".") 
                curs.execute(sql, row)
-       else :
-           curs.executemany(sql, reader)
-       conn.commit()
-       actualize_db()
+        else :
+            curs.executemany(sql, reader)
+        conn.commit()
+        actualize_db()
 
      
 def create_dialog(title, fields_in, buttons ):
@@ -427,7 +439,7 @@ def create_dialog(title, fields_in, buttons ):
                 Grid.columnconfigure(d_frame, 0, weight=1)
                 #Data Text Extractor in the fields list ()
                 #see stackoverflow.com/questions/17677649 (loop and lambda)
-                fields[f][1] = lambda x=fw_label : x.get('1.0',END)
+                fields[f][1] = lambda x=fw_label : x.get('1.0','end')
             elif field[1]==True or field[1]==False:
                 #Boolean Field
                 name_var = BooleanVar()
@@ -483,13 +495,15 @@ def import_csvtb():
     #Guess Header and delimiter
     with open(csv_file, encoding = encodings[0]) as f:
         preview = f.read(9999)  
+        has_header = True ; default_sep=","  ; default_quote='"'  
     try:
         dialect = csv.Sniffer().sniff(preview)
         has_header = csv.Sniffer().has_header(preview)
         default_sep = dialect.delimiter
+        default_quote = Dialect.quotechar
     except: #sniffer can fail
-        has_header = True ; default_sep=","    
-    default_decim = "."
+        pass
+    default_decim = "." ; 
     if default_sep == ";" :
         default_decim=","
         
@@ -498,18 +512,19 @@ def import_csvtb():
     table_name = (csv_file.replace("\\","/")).split("/")[-1].split(".")[0]
     dlines = "\n\n".join(preview.splitlines()[:3])
     guess_who = guess_sql_creation(table_name,
-           default_sep, default_decim, has_header, dlines)[2]
+           default_sep, default_decim, has_header, dlines, default_quote)[2]
     fields_in = ['',[ 'csv Name', csv_file , 'r', 100],''
      ,['table Name', table_name]
-     ,['column separator', default_sep]
+     ,['column separator', default_sep, 'w', 20]
+     ,['string delimiter', default_quote, 'w', 20]
      ,'',['Decimal separator', default_decim]
      ,['Encoding', encodings[0] ]
      ,'Fliflaps',['Header line', has_header]
      ,['Create table', True  ]
      ,['Replace existing data', True] ,''
-     ,["first 3 lines" , dlines,'r', 100,10] ,''
+     ,['first 3 lines' , dlines,'r', 100,10] ,''
      ,['use manual creation request', False],''
-     ,["creation request", guess_who,'w', 100,10]  ]
+     ,['creation request', guess_who,'w', 100,10]  ]
  
     create_dialog(("Importing %s" % csv_file ), fields_in  
                   , ("Import", import_csvtb_ok) )  
@@ -627,7 +642,7 @@ def get_things(root_id , what , attached_db = "", tbl =""):
           'view': ("""select '{0:s}' || name, name, sql FROM {0:s}sqlite_master 
                      WHERE type='{1:s}' order by name""",
                      '{0:s}','{1:s}','{2:s}','fields'),
-          'fields': ("pragma {0:s}table_info({2:s})", 
+          'fields': ("pragma {0:s}table_info([{2:s}])", 
                      '{1:s} {2:s}','{1:s}', '',''),
           'attached_databases': ("PRAGMA database_list",
                      '{1:s}','{1:s}', "ATTACH DATABASE '{2:s}' as '{1:s}'",''),
@@ -749,7 +764,7 @@ def create_menu(root):
                           
     menu_help.add_command(label='about',command = lambda : messagebox.showinfo(
        message="""Sqlite_py_manager : a graphic SQLite Client in 1 Python file
-            \n(version 2014-05-18c)
+            \n(version 2014-05-20a)
             \n(https://github.com/stonebig/baresql/blob/master/examples)""")) 
 
 
