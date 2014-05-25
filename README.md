@@ -50,5 +50,6 @@ Version :
  * 0.6 : first version with correct mysql support
  * 0.6.1 : a pure standard-installation Python SQLite browser in examples\sqlite_py_manager.py 
         https://github.com/stonebig/baresql/blob/master/examples/sqlite_py_manager.GIF
+ * 0.6.4 : minimal compatibility of sqlite_py_manager.py with old versions : python 2.7 and sqlite 3.6.21
  * 0.7dev : support of pandas 0.14 sqlalchemy
  
