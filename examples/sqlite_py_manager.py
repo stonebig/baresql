@@ -1,15 +1,20 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
-import sqlite3 as sqlite 
-import sys, os, locale
-import csv
+from __future__ import print_function, unicode_literals, division #Python2.7
 
-from tkinter import *
-from tkinter import font
-from tkinter import ttk
-from tkinter.ttk import *
-from tkinter import filedialog
-from tkinter import messagebox
+import sqlite3 as sqlite 
+import sys, os, locale, csv , io , codecs
+
+try: #We are Python 3.3+, but try to be kind with python 2.7
+    from tkinter import *
+    from tkinter import font, filedialog, messagebox, ttk
+    from tkinter.ttk import *
+except: #Python2.7
+    from Tkinter import *  
+    import Tkinter as tkinter, tkFont as font
+    import tkFileDialog as filedialog, tkMessageBox as messagebox  
+    from ttk import *
+    import ttk as ttk
 
 class App: 
     "the GUI graphic application"
@@ -71,7 +76,7 @@ class App:
         self.menu_help.add_command(label='about',
             command = lambda : messagebox.showinfo( message=
             """Sqlite_py_manager : a graphic SQLite Client in 1 Python file
-            \n(version 2014-05-24a 'Assassination of Class Room')
+            \n(version 2014-05-25a 'sql everywhere')
             \n(https://github.com/stonebig/baresql/blob/master/examples)""")) 
 
 
@@ -275,7 +280,7 @@ s+ZxWt12o+PVX/pORxQAADs=
       }   
         #transform 'in place' base64 icons into tk_icons 
         for key, value in icons.items():
-            icons[key] = ttk.tkinter.PhotoImage(data = value)
+            icons[key] = PhotoImage(data = value)
         return  icons
  
    
@@ -428,7 +433,7 @@ class notebook_for_queries():
         #new "editable" script 
         f1 = ttk.Labelframe(fw_welcome, text='Script', width=200, height=100)
         fw_welcome.add(f1)
-        fw_label = ttk.tkinter.Text(f1 ,bd =1)
+        fw_label = Text(f1 ,bd =1)
                 
         scroll = ttk.Scrollbar(f1,   command = fw_label.yview)
         fw_label.configure(yscrollcommand = scroll.set)
@@ -493,6 +498,7 @@ class notebook_for_queries():
         f2.pack(fill = 'both', expand=True)
         fw_result_nb.add(f2 , text = title)
 
+        #ttk.Style().configure('TLabelframe.label', font=("Arial", 14, "bold"))
         #lines=queries
         fw_Box = Treeview(f2, columns=tree_columns, show="headings",
                           padding=(2, 2, 2,2))
@@ -550,8 +556,12 @@ class notebook_for_queries():
 
 def guess_sql_creation(table_name, separ, decim, header, data_is, quoter='"'):
     "guessing sql creation request"
-    dlines = list(csv.reader(data_is.replace('\n\n','\n').splitlines()
+    try:
+        dlines = list(csv.reader(data_is.replace('\n\n','\n').splitlines()
             ,delimiter = separ, quotechar = quoter))
+    except: #minimal hack for python2.7
+        dlines = list(csv.reader(data_is.replace('\n\n','\n').splitlines()
+            ,delimiter = str(separ), quotechar = str(quoter) ))
     r , typ = list(dlines[0]) , list(dlines[1]) 
     for i in range(len(r)):
         try:
@@ -601,8 +611,12 @@ def import_csvtb_ok(thetop, entries, actions):
         sql="INSERT INTO [%s]  VALUES(%s);" % (
                table_name,  ", ".join(["?"]*len(typ)))
 
-        reader = csv.reader(open(csv_file, 'r', encoding = encoding_is),
+        try:
+            reader = csv.reader(open(csv_file, 'r', encoding = encoding_is),
                            delimiter = separ, quotechar='"')
+        except: #minimal hack for 2.7
+            reader = csv.reader(open(csv_file, 'r' ),
+                           delimiter = str(separ), quotechar=str('"') )
         #read first_line if needed to skip headers 
         if header:
             row = next(reader)
@@ -662,8 +676,7 @@ def create_dialog(title, fields_in, buttons, actions ):
                        , width=width , height=height   , text= field[0]  )
                 d_frame.grid(column= 0, row= 0, sticky ='nsew', pady=1, padx=1)
                 Grid.rowconfigure(packing_frame, 0, weight=1)
-                fw_label = ttk.tkinter.Text(d_frame, bd=1,
-                                            width=width, height=height)
+                fw_label = Text(d_frame, bd=1, width=width, height=height)
                 fw_label.pack(side= LEFT, expand= YES, fill= BOTH)     
                 scroll = ttk.Scrollbar(d_frame, command = fw_label.yview)
                 scroll.pack(side = RIGHT, expand = NO, fill = Y)
@@ -713,7 +726,7 @@ def import_csvtb(actions):
               filetypes=[("default","*.csv"),("other","*.txt"),("all","*.*")])
 
     #Guess encoding
-    with open(csv_file, "rb") as f:
+    with io.open(csv_file, "rb") as f:
         data = f.read(5)
     if data.startswith(b"\xEF\xBB\xBF"): # UTF-8 with a "BOM"
         encodings = ["utf-8-sig"]
@@ -721,14 +734,14 @@ def import_csvtb(actions):
         encodings = ["utf-16"]
     else: #in Windows, guessing utf-8 doesn't work, so we have to try
         try:
-            with open(csv_file, encoding = "utf-8") as f:
+            with io.open(csv_file, encoding = "utf-8") as f:
                 preview = f.read(222222)  
                 encodings = ["utf-8"]
         except:
             encodings = [locale.getdefaultlocale()[1], "utf-8"]
 
     #Guess Header and delimiter
-    with open(csv_file, encoding = encodings[0]) as f:
+    with io.open(csv_file, encoding = encodings[0]) as f:
         preview = f.read(9999)  
         has_header = True ; default_sep=","  ; default_quote='"'  
     try:
@@ -772,19 +785,22 @@ def export_csv_ok(thetop, entries, actions):
     for f in entries:
         if type(f)!= type('e'):
             d[f[0]]= f[1]()
-    csv_file=d['csv Name'].strip() ; separ = d['column separator']
-    header = d['Header line'] ; encoding_is = d['Encoding']
-    query_is = d["Data to export (MUST be 1 Request)"]
+    csv_file=d['csv Name'].strip() 
     cursor = conn.cursor()
-    cursor.execute(query_is)
+    cursor.execute(d["Data to export (MUST be 1 Request)"])
     thetop.destroy()
-    with open(csv_file, 'w', newline = '', encoding = encoding_is) as fout:
-        writer = csv.writer(fout, delimiter = separ,
+    if sys.version_info[0] !=2: #python3
+        fout = io.open(csv_file, 'w', newline = '', encoding= d['Encoding'])
+        writer = csv.writer(fout, delimiter = d['column separator'],
                             quotechar='"', quoting=csv.QUOTE_MINIMAL)
-        if header:
+    else: #python2.7 (minimal)   
+        fout = io.open(csv_file, 'wb')
+        writer = csv.writer(fout, delimiter = str(d['column separator']),
+                        quotechar=str('"'), quoting=csv.QUOTE_MINIMAL)
+    if d['Header line']:
             writer.writerow([i[0] for i in cursor.description]) # heading row
-        writer.writerows(cursor.fetchall())
-
+    writer.writerows(cursor.fetchall())
+    fout.close
     
 def export_csv_dialog(query = "select 42", text="undefined.csv", actions=[]):
     "export csv dialog"
@@ -967,7 +983,8 @@ CREATE INDEX parts_id1 ON part(ParentNo Asc, ChildNo Desc);
 -- to CREATE a view 'v1':
 CREATE VIEW v1 as select * from item inner join part as p ON ItemNo=p.ParentNo;
 \n-- to INSERT datas 
-INSERT INTO item values("T","Ford",1000),("A","Merced",1250),("W","Wheel",9);
+INSERT INTO item values("T","Ford",1000);
+INSERT INTO item select "A","Merced",1250 union all select "W","Wheel",9 ;
 INSERT INTO part select ItemNo,"W","needed",Kg/250*4 from item where Kg>250;
 \n-- to CREATE a Python embedded function (enclose them by "py" and ";") :
 pydef py_sin(s):
