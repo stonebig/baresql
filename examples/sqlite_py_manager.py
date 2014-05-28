@@ -5,11 +5,11 @@ from __future__ import print_function, unicode_literals, division #Python2.7
 import sqlite3 as sqlite 
 import sys, os, locale, csv , io , codecs
 
-try: #We are Python 3.3+, but try to be kind with python 2.7
-    from tkinter import *
-    from tkinter import font, filedialog, messagebox, ttk
+try: #We are Python 3.3+
+    from tkinter import * 
+    from tkinter import font, ttk, filedialog, messagebox
     from tkinter.ttk import *
-except: #Python2.7
+except: #or we are Python2.7
     from Tkinter import *  
     import Tkinter as tkinter, tkFont as font
     import tkFileDialog as filedialog, tkMessageBox as messagebox  
@@ -56,7 +56,6 @@ class App:
         #feeding the top level menu
         self.menu = Menu(menubar)
         menubar.add_cascade(menu=self.menu, label='Database')
-
         self.menu_help = Menu(menubar)
         menubar.add_cascade(menu=self.menu_help, label='?')
 
@@ -75,7 +74,7 @@ class App:
         self.menu_help.add_command(label='about',
             command = lambda : messagebox.showinfo( message=
             """Sqlite_py_manager : a graphic SQLite Client in 1 Python file
-            \n(version 2014-05-26a 'Combobox strikes back')
+            \n(version 2014-05-28a 'ScriptLoad icon Artwork')
             \n(https://github.com/stonebig/baresql/blob/master/examples)""")) 
 
 
@@ -98,7 +97,8 @@ class App:
            ,('csvex_img', lambda x=self: export_csvtb([x.conn, x.db_tree]),
                      "Export Selected Table to a CSV file")
            ,('qryex_img', lambda x=self: export_csvqr([x.conn, x.n]),
-                     "Export Selected Query to a CSV file")]
+                     "Export Selected Query to a CSV file")
+           ,('sqlin_img', self.load_script , "Load a SQL Script File")]
     
         for img, action, tip in to_show:
             b = Button(self.toolbar, image= self.tk_icon[img], command= action)
@@ -128,6 +128,15 @@ class App:
            self.actualize_db()
        
        
+    def load_script(self):
+       """load a script file"""
+       filename = filedialog.askopenfilename(defaultextension='.sql',
+              filetypes=[("default","*.sql"),("other","*.txt"),("all","*.*")])
+       if filename != "":
+           text = ((filename.replace("\\","/")).split("/")[-1]).split(".")[0]
+           with io.open(filename, encoding = Guess_encoding(filename)[0]) as f:
+               new_tab_ref = self.n.new_query_tab(text, f.read())
+       
     def attach_db(self):
        """attach an existing database"""
        filename = filedialog.askopenfilename(defaultextension='.db',
@@ -137,16 +146,14 @@ class App:
 
        if filename != '':
            attach_order = "ATTACH DATABASE '%s' as '%s' "%(filename,attach);
-           cur = self.conn.execute(attach_order)
-           cur.close
+           self.conn.execute(attach_order)
            self.actualize_db()
+
 
     def close_db(self):
        """close database"""
-       try :
-           self.db_tree.delete("Database")
-       except :
-           pass
+       try    : self.db_tree.delete("Database")
+       except : pass
        self.conn.close
    
 
@@ -180,7 +187,7 @@ class App:
     def quit_db(self):
        """quit application button"""
        if messagebox.askyesno(message='Are you sure you want to quit ?',
-	                      icon='question', title='Install'):
+	                      icon='question', title='Quiting'):
            self.tk_win.destroy()
 
 
@@ -192,14 +199,12 @@ class App:
            self.n.remove_treeviews(active_tab_id)
            #get current selection (or all)
            fw =self.n.fw_labels[active_tab_id]
-           script = ""
            try :
                script = (fw.get('sel.first', 'sel.last')) 
            except:
                script = fw.get(1.0,END)[:-1]   
            self.create_and_add_results(script, active_tab_id)
-           #below = workaround display bug http://bugs.python.org/issue17511 
-           fw.focus_set()
+           fw.focus_set() #workaround of bug http://bugs.python.org/issue17511
 
               
     def t_doubleClicked(self, event):
@@ -207,7 +212,7 @@ class App:
         #determine item to consider   
         selitem = self.db_tree.focus() #the item having the focus  
         seltag = self.db_tree.item(selitem,"tag")[0]  
-        if seltag == "run_up" : # if 'run-up' tag do as if dbl-click 1 level up 
+        if seltag == "run_up" : # 'run-up' tag ==> dbl-click 1 level up 
             selitem =  self.db_tree.parent(selitem)
         #get final information : text, selection and action   
         definition , action = self.db_tree.item(selitem, "values")
@@ -216,8 +221,7 @@ class App:
 
         #create a new tab and run it if action suggest it
         new_tab_ref = self.n.new_query_tab(tab_text, script)
-        if action != "": #run the new_tab created
-           self.run_tab()          
+        if action != "" : self.run_tab() #run the new_tab created
 
 
     def get_tk_icons(self):
@@ -264,6 +268,13 @@ R0lGODdhGAAYAJkAAP///wAAADNm/zOqMywAAAAAGAAYAAACXIQPoZobeR4yEtZ3J511e845zah1
 oKV9WEQxqYOJX0rX9oDndp3jO6/7aXoD4UTnMxqCgKKSqVwmo9SD4GrFGq4CGvbbBQO03m4WQZ5w
 s+ZxWt12o+PVX/pORxQAADs=
 '''
+        ,'sqlin_img':'''\
+R0lGODdhGAAYAMwAAP///46z2Z6fnenp6WSJtsLCwVRymHul03ym1IODgqHA4GSJt4Co04OPno6z
+2mKGs3agzAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACwAAAAA
+GAAYAAAFoCAgjmRpnqOgrmuCmsIgz7LgvmISF3xfDLYTS0crAm+k4c7nA8JaMSNN8FQRmU1qSSmd
+PgmPB2FMLpuTDYJizW67FQS0OkCv2+/xVFpx79vzOQ0LfoQBgAAJaYV+BiQJC4OLd40jCWN0Dg4I
+m5ydm5Q5kAGepAgHp6CIl6esra4HqZYQpwwHtbe2DLq1sWZlC2SQwrEGxcbHyMY4y8zNJSEAOw==
+'''
       }   
         #transform 'in place' base64 icons into tk_icons 
         for key, value in icons.items():
@@ -300,8 +311,7 @@ s+ZxWt12o+PVX/pORxQAADs=
             global tipwindow
             tw = tipwindow
             tipwindow = None
-            if tw:
-                tw.destroy()
+            if tw: tw.destroy()
             
         widget.bind( "<Enter>", enter )
         widget.bind( "<Leave>", close )
@@ -357,7 +367,6 @@ s+ZxWt12o+PVX/pORxQAADs=
                         titles = [row_info[0] for row_info in cur.description]
                         self.n.add_treeview(tab_tk_id, titles, rows,
                                         "Qry", first_line)
-                    cur.close
                 except sqlite.Error as msg:#OperationalError
                     self.n.add_treeview(tab_tk_id, ('Error !',), [(msg,)],
                                         "Error !", first_line )
@@ -429,8 +438,7 @@ class notebook_for_queries():
     def del_tab(self):
        """delete active notebook tab's results"""
        given_tk_id = self.notebook.select()
-       if given_tk_id !='':
-           self.notebook.forget(given_tk_id)
+       if given_tk_id !='': self.notebook.forget(given_tk_id)
 
 
     def remove_treeviews(self, given_tk_id  ):
@@ -540,22 +548,10 @@ def guess_sql_creation(table_name, separ, decim, header, data_is, quoter='"'):
 def import_csvtb(actions):
     """import csv dialog (with guessing of encoding and separator)"""
     csv_file = filedialog.askopenfilename(defaultextension='.db',
-              title="Choose a csv file (with header) to import ",
+              title="Choose a csv fileto import ",
               filetypes=[("default","*.csv"),("other","*.txt"),("all","*.*")])
     #Guess encoding
-    with io.open(csv_file, "rb") as f:
-        data = f.read(5)
-    if data.startswith(b"\xEF\xBB\xBF"): # UTF-8 with a "BOM"
-        encodings = ["utf-8-sig"]
-    elif data.startswith(b"\xFF\xFE") or data.startswith(b"\xFE\xFF"): # UTF-16
-        encodings = ["utf-16"]
-    else: #in Windows, guessing utf-8 doesn't work, so we have to try
-        try:
-            with io.open(csv_file, encoding = "utf-8") as f:
-                preview = f.read(222222)  
-                encodings = ["utf-8"]
-        except:
-            encodings = [locale.getdefaultlocale()[1], "utf-8"]
+    encodings = Guess_encoding(csv_file)
     #Guess Header and delimiter
     with io.open(csv_file, encoding = encodings[0]) as f:
         preview = f.read(9999)  
@@ -565,9 +561,8 @@ def import_csvtb(actions):
         has_header = csv.Sniffer().has_header(preview)
         default_sep = dialect.delimiter
         default_quote = Dialect.quotechar
-    except: #sniffer can fail
-        pass
-    default_decim = "." if default_sep != ";" else ","
+    except:  pass #sniffer can fail
+    default_decim = [".",","] if default_sep != ";" else [",","."]
         
     #Request form : List of Horizontal Frame names 'FramLabel' 
     #    or fields :  'Label', 'InitialValue',['r' or 'w', Width, Height]
@@ -592,6 +587,22 @@ def import_csvtb(actions):
                   , ("Import", import_csvtb_ok), actions )  
 
 
+def Guess_encoding(csv_file):
+    with io.open(csv_file, "rb") as f:
+        data = f.read(5)
+    if data.startswith(b"\xEF\xBB\xBF"): # UTF-8 with a "BOM"
+        return ["utf-8-sig"]
+    elif data.startswith(b"\xFF\xFE") or data.startswith(b"\xFE\xFF"): # UTF-16
+        return ["utf-16"]
+    else: #in Windows, guessing utf-8 doesn't work, so we have to try
+        try:
+            with io.open(csv_file, encoding = "utf-8") as f:
+                preview = f.read(222222)  
+                return ["utf-8"]
+        except:
+            return [locale.getdefaultlocale()[1], "utf-8"]
+
+
 def export_csv_dialog(query = "select 42", text="undefined.csv", actions=[]):
     "export csv dialog"
     #Proposed encoding (we favorize utf-8 or utf-8-sig)
@@ -601,12 +612,10 @@ def export_csv_dialog(query = "select 42", text="undefined.csv", actions=[]):
     #Proposed csv separator
     default_sep=[",","|",";"]
 
-    file_tk = filedialog.asksaveasfile(mode='w',defaultextension='.db',
+    csv_file = filedialog.asksaveasfilename(defaultextension='.db',
               title = text,                          
               filetypes=[("default","*.csv"),("other","*.txt"),("all","*.*")])
-    csv_file = file_tk.name
-    file_tk.close
-    if csv_file != "(none)":
+    if csv_file != "":
         #Request form (http://www.python-course.eu/tkinter_entry_widgets.php)
         fields = ['',['csv Name', csv_file,'r',100 ],''
            ,['column separator',default_sep]
@@ -720,37 +729,34 @@ def import_csvtb_ok(thetop, entries, actions):
     #affect to variables
     csv_file = d['csv Name'].strip()
     table_name = d['table Name'].strip()
-    separ = d['column separator'] ; decim = d['Decimal separator']
-    header = d['Header line'] ; creation = d['Create table']
-    replacing = d['Replace existing data'] ; encoding_is = d['Encoding']
-    data = d["first 3 lines"]  ; quotechar = d['string delimiter']
-    do_manu = d['use manual creation request'] ; manu = d["creation request"]
+    separ = d['column separator'] ; decim = d['Decimal separator'] 
+    quotechar = d['string delimiter']
     #Action
     if   csv_file != "(none)" and len(csv_file)*len(table_name)*len(separ)>1:
         thetop.destroy()
         curs = conn.conn.cursor()
         #Do initialization job
         sql, typ, head = guess_sql_creation(table_name, separ, decim,
-                                            header, data, quotechar)
-        if creation:
+                              d['Header line'], d["first 3 lines"], quotechar)
+        if d['Create table']:
             curs.execute("drop TABLE if exists [%s];" % table_name)
-            if do_manu:
-                sql = ("CREATE TABLE [%s] (%s);"  % (table_name, manu))
-                print(sql)
+            if d['use manual creation request']:
+                sql = ("CREATE TABLE [%s] (%s);"  % 
+                       (table_name, d["creation request"]))
             curs.execute(sql )
-        if replacing:
+        if d['Replace existing data'] :
             curs.execute("delete from [%s];" % table_name)
         sql="INSERT INTO [%s]  VALUES(%s);" % (
                table_name,  ", ".join(["?"]*len(typ)))
 
         try:
-            reader = csv.reader(open(csv_file, 'r', encoding = encoding_is),
-                           delimiter = separ, quotechar='"')
+            reader = csv.reader(open(csv_file, 'r', encoding = d['Encoding']),
+                           delimiter = separ, quotechar = quotechar)
         except: #minimal hack for 2.7
             reader = csv.reader(open(csv_file, 'r' ),
-                           delimiter = str(separ), quotechar=str('"') )
+                           delimiter = str(separ), quotechar=str(quotechar) )
         #read first_line if needed to skip headers 
-        if header:
+        if d['Header line']:
             row = next(reader)
         if decim != "." : # one by one needed
             for row in reader:
@@ -790,10 +796,10 @@ def export_csv_ok(thetop, entries, actions):
     
 
 def export_csvtb( actions):
-    "get table selected definition and launch cvs export dialog"
-    #determine item to consider   
+    "get selected table definition and launch cvs export dialog"
+    #determine selected table   
     db_tree = actions[1]
-    selitem = db_tree.focus() #the item having the focus  
+    selitem = db_tree.focus() #get tree item having the focus  
     if selitem !='':
         seltag = db_tree.item(selitem,"tag")[0] 
         if seltag == "run_up" : # if 'run-up', do as if dbl-click 1 level up 
@@ -811,15 +817,12 @@ def export_csvqr( actions):
     active_tab_id = n.notebook.select()
     if active_tab_id !='': #get current selection (or all)
         fw =n.fw_labels[active_tab_id]
-        try :
-            query = fw.get('sel.first', 'sel.last')
-        except:
-            query = fw.get(1.0,END)[:-1]   
-        if query != "":
-            export_csv_dialog(query , "Export Query", actions)   
+        try : query = fw.get('sel.first', 'sel.last')
+        except: query = fw.get(1.0,END)[:-1]   
+        if query != "":  export_csv_dialog(query , "Export Query", actions)   
 
     
-def get_things(conn,  root_id , what , attached_db = "", tbl =""):
+def get_things( conn, root_id , what , attached_db = "", tbl =""):
     "database objects of 'what': [objectCode, objectName, Definition,[Lvl -1]]"
     #dico = what : what qry, result id, result text, result crea, 'what' below 
     #    or what : other 'what' specification to use in thi dictionnary
@@ -878,8 +881,7 @@ class baresql():
             
     def execute(self, sql , env = None):
         "execute sql but intercept log"
-        if self.do_log:
-            self.log.append(sql)
+        if self.do_log: self.log.append(sql)
         return self.conn.execute(sql )        
 
     def createpydef(self, sql):
