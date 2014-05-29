@@ -74,7 +74,7 @@ class App:
         self.menu_help.add_command(label='about',
             command = lambda : messagebox.showinfo( message=
             """Sqlite_py_manager : a graphic SQLite Client in 1 Python file
-            \n(version 2014-05-29a 'Data Dumper')
+            \n(version 2014-05-29b 'Token Right')
             \n(https://github.com/stonebig/baresql/blob/master/examples)""")) 
 
 
@@ -966,17 +966,26 @@ class baresql():
                     i += 1
             else:
                 token = dico[sql[i]]
-                i += 1
                 if token == 'TK_SP': #TK_SP feeding
                     while (i < length and sql[i] in dico and
                     dico[sql[i]] == 'TK_SP'):
                         i += 1
-                if token == 'TK_STRING': #TK_STRING feeding
+                elif token == 'TK_STRING': #TK_STRING feeding
                     delimiter = sql[i]
-                    if delimiter == sql[i]:
-                        token = 'TK_ID'
-                    while (i < length  and sql[i] == delimiter):
-                        i += 1 #other (don't bother, case)
+                    if delimiter != "'": token = 'TK_ID'
+                    if i < length : i += 1
+                    while (i < length  ):
+                        if sql[i] != delimiter :
+                            i += 1 #other (don't bother, case)
+                        elif i < length -1 and sql[i+1] == delimiter :
+                            i += 2   # '' case
+                        else:
+                            break 
+                    if sql[i] != delimiter : 
+                        token = 'TK_ERROR'
+                    if i < length : i += 1  
+                else: 
+                    if i < length : i += 1
         return i, token
 
 
