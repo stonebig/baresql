@@ -74,7 +74,7 @@ class App:
         self.menu_help.add_command(label='about',
             command = lambda : messagebox.showinfo( message=
             """Sqlite_py_manager : a graphic SQLite Client in 1 Python file
-            \n(version 2014-05-28a 'ScriptLoad icon Artwork')
+            \n(version 2014-05-29a 'Data Dumper')
             \n(https://github.com/stonebig/baresql/blob/master/examples)""")) 
 
 
@@ -98,7 +98,8 @@ class App:
                      "Export Selected Table to a CSV file")
            ,('qryex_img', lambda x=self: export_csvqr([x.conn, x.n]),
                      "Export Selected Query to a CSV file")
-           ,('sqlin_img', self.load_script , "Load a SQL Script File")]
+           ,('sqlin_img', self.load_script , "Load a SQL Script File") 
+           ,('sqlsav_img', self.savdb_script,"Save Database as a SQL Script")]
     
         for img, action, tip in to_show:
             b = Button(self.toolbar, image= self.tk_icon[img], command= action)
@@ -137,6 +138,33 @@ class App:
            with io.open(filename, encoding = Guess_encoding(filename)[0]) as f:
                new_tab_ref = self.n.new_query_tab(text, f.read())
        
+
+    def savdb_script(self):
+       """save database as a script file"""
+       filename = filedialog.asksaveasfilename(defaultextension='.db',
+              title = "save database structure in a text file",                          
+              filetypes=[("default","*.sql"),("other","*.txt"),("all","*.*")])
+       if filename == "": return
+       with  io.open(filename,   'w', encoding='utf-8') as f:
+           f.write ("/*utf-8 bug safety : 你好 мир Artisou à croute blonde*/\n")
+           #Create table, view, index, pydef 
+           for category in ['table', 'view', 'trigger', 'index','pydef']:
+               for k in get_things(self.conn,  category, ""):
+                   if k[2] != [] and k[2] !='None' :  f.write(k[2] + ";\n" ) 
+           #Creating Datas
+           for i in get_things(self.conn,  'table', ""):
+               f.write("-- Inserting Datas in Table [%s] \n" % i[1])
+               for row in self.conn.execute("select * from [%s]"%i[1]):
+                   re = ",".join(["'"+i.replace("'","''")+"'" if isinstance(i,
+                        (type(u'a'), type('a'))) else "%s"%i for i in row])
+                   f.write("insert into [%s] values(%s);\n"%(i[1],re))    
+           #and now the triggers
+           for k in get_things(self.conn,  'trigger', ""):
+               if k != [] :  f.write(k[2] + ";\n" ) 
+           #and the final cherry : the foreign key
+           for row in self.conn.execute("PRAGMA foreign_keys"):
+               if row[0] == 1: f.write("\nPRAGMA foreign_keys = ON;\n")        
+ 
     def attach_db(self):
        """attach an existing database"""
        filename = filedialog.askopenfilename(defaultextension='.db',
@@ -275,6 +303,12 @@ GAAYAAAFoCAgjmRpnqOgrmuCmsIgz7LgvmISF3xfDLYTS0crAm+k4c7nA8JaMSNN8FQRmU1qSSmd
 PgmPB2FMLpuTDYJizW67FQS0OkCv2+/xVFpx79vzOQ0LfoQBgAAJaYV+BiQJC4OLd40jCWN0Dg4I
 m5ydm5Q5kAGepAgHp6CIl6esra4HqZYQpwwHtbe2DLq1sWZlC2SQwrEGxcbHyMY4y8zNJSEAOw==
 '''
+        ,'sqlsav_img':'''\
+R0lGODdhGAAYALsAAP///46z2Xul056fnenp6WSJtsLCwf8AAKHA4IODgmSJt4Co01RymIOPnmKG
+s3agzCwAAAAAGAAYAAAElxDIOYe9N9G9B/ngN2jclnhGqhrEWGJnKLckBaPr2nL3LA+8DC6X2nWE
+vhDwWHA4CtCodGobFBDYrHaLKNga14B4TC57K2BEeU0+SxJgtjzgBsALczaDkoCSBYCBgoB7E314
+g4mChW9+io+MdgUPgAsClpiXC5uWewefn1IKo6SlpIygJaoboAerr6muryWpALKzrLe4JREAOw==
+'''
       }   
         #transform 'in place' base64 icons into tk_icons 
         for key, value in icons.items():
@@ -319,7 +353,7 @@ m5ydm5Q5kAGepAgHp6CIl6esra4HqZYQpwwHtbe2DLq1sWZlC2SQwrEGxcbHyMY4y8zNJSEAOw==
 
     def add_thingsnew(self, root_id , what , attached_db = ""): 
         "add a sub-tree to database tree pan"
-        tables = get_things(self.conn,root_id, what, attached_db) 
+        tables = get_things(self.conn,  what, attached_db) 
         #level 1 : create  the "what" node (as not empty)
         if len(tables)>0:
             idt = self.db_tree.insert(root_id,"end", "%s%s" % (attached_db, what)
@@ -348,12 +382,14 @@ m5ydm5Q5kAGepAgHp6CIl6esra4HqZYQpwwHtbe2DLq1sWZlC2SQwrEGxcbHyMY4y8zNJSEAOw==
 
     def create_and_add_results(self, instructions, tab_tk_id):
         """execute instructions and add them to given tab results"""
-        a_jouer = self.conn.get_sqlsplit(instructions, remove_comments = True) 
-        for instruction in a_jouer:
-            instruction = instruction.replace(";","").strip(' \t\n\r')
-            first_line = instruction.splitlines()[0]   
-            if instruction[:5] == "pydef" :
-                pydef = self.conn.createpydef(instruction)
+        a_jouer = self.conn.get_sqlsplit(instructions, remove_comments = False) 
+        for instruction in a_jouer: #in hope ine day SQLite keep comments
+            instru = self.conn.get_sqlsplit(instruction, 
+                                            remove_comments = True)[0]
+            instru = instru.replace(";","").strip(' \t\n\r')
+            first_line = (instru+"\n").splitlines()[0]   
+            if instru[:5] == "pydef" :
+                pydef = self.conn.createpydef(instru)
                 titles = ("Creating embedded python function",)
                 rows = self.conn.conn_def[pydef]['pydef'].splitlines()
                 rows.append(self.conn.conn_def[pydef]['inst'])
@@ -822,7 +858,7 @@ def export_csvqr( actions):
         if query != "":  export_csv_dialog(query , "Export Query", actions)   
 
     
-def get_things( conn, root_id , what , attached_db = "", tbl =""):
+def get_things( conn,   what , attached_db = "", tbl =""):
     "database objects of 'what': [objectCode, objectName, Definition,[Lvl -1]]"
     #dico = what : what qry, result id, result text, result crea, 'what' below 
     #    or what : other 'what' specification to use in thi dictionnary
@@ -857,7 +893,7 @@ def get_things( conn, root_id , what , attached_db = "", tbl =""):
     for rec in resu:
         result = [order[i].format(*rec) for i in range(1,5)]
         if result[3] != '':
-            resu2 = get_things(conn,  root_id , result[3] ,
+            resu2 = get_things(conn,    result[3] ,
                                attached_db , result[1])
             result[3] = resu2
         Tables.append(result)
