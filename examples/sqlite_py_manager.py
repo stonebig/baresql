@@ -74,7 +74,7 @@ class App:
         self.menu_help.add_command(label='about',
             command = lambda : messagebox.showinfo( message=
             """Sqlite_py_manager : a graphic SQLite Client in 1 Python file
-            \n(version 2014-05-29b 'Token Right')
+            \n(version 2014-05-30a 'Token Heads')
             \n(https://github.com/stonebig/baresql/blob/master/examples)""")) 
 
 
@@ -155,8 +155,8 @@ class App:
            for i in get_things(self.conn,  'table', ""):
                f.write("-- Inserting Datas in Table [%s] \n" % i[1])
                for row in self.conn.execute("select * from [%s]"%i[1]):
-                   re = ",".join(["'"+i.replace("'","''")+"'" if isinstance(i,
-                        (type(u'a'), type('a'))) else "%s"%i for i in row])
+                   re = ",".join(["'"+c.replace("'","''")+"'" if isinstance(c,
+                        (type(u'a'), type('a'))) else "%s"%c for c in row])
                    f.write("insert into [%s] values(%s);\n"%(i[1],re))    
            #and now the triggers
            for k in get_things(self.conn,  'trigger', ""):
