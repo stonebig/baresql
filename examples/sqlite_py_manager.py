@@ -96,10 +96,11 @@ class App:
                      "Import a CSV file into a Table")
            ,('csvex_img', lambda x=self: export_csvtb([x.conn, x.db_tree]),
                      "Export Selected Table to a CSV file")
+           ,('dbdef_img', self.savdb_script,"Save Database as a SQL Script")
            ,('qryex_img', lambda x=self: export_csvqr([x.conn, x.n]),
-                     "Export Selected Query to a CSV file")
+                     "Export Selected Query to a CSV file") 
            ,('sqlin_img', self.load_script , "Load a SQL Script File") 
-           ,('sqlsav_img', self.savdb_script,"Save Database as a SQL Script")]
+           ,('sqlsav_img', self.sav_script,"Save a SQL Script in a File")]
     
         for img, action, tip in to_show:
             b = Button(self.toolbar, image= self.tk_icon[img], command= action)
@@ -164,6 +165,21 @@ class App:
            #and the final cherry : the foreign key
            for row in self.conn.execute("PRAGMA foreign_keys"):
                if row[0] == 1: f.write("\nPRAGMA foreign_keys = ON;\n")        
+ 
+    def sav_script(self):
+       """save a script in a file"""
+       active_tab_id = self.n.notebook.select()
+       if active_tab_id != '':
+           #get current selection (or all)
+           fw =self.n.fw_labels[active_tab_id]
+           script = fw.get(1.0,END)[:-1]   
+           filename = filedialog.asksaveasfilename(defaultextension='.db',
+              title = "save script in a sql file",                          
+              filetypes=[("default","*.sql"),("other","*.txt"),("all","*.*")])
+       if filename == "": return
+       with  io.open(filename,'w', encoding='utf-8') as f:
+           f.write ("/*utf-8 bug safety : 你好 мир Artisou à croute blonde*/\n")
+           f.write(script)        
  
     def attach_db(self):
        """attach an existing database"""
@@ -282,32 +298,43 @@ X3eMYsmxrHqxxikb25zQ9A3UaMPz1XJE09BUbDl8uSMnOdOdoD3ph/pjMI1LrBOH5Da2ynHTKk0U
 AAA7
 '''
         ,'csvin_img':'''\
-R0lGODdhGAAYAJkAAP///wAAADOqMwAAACwAAAAAGAAYAAACVYQPoZobeR4yEtZ3J511e845zah1
-oKV9WEQxqYOJX0rX9iHkd50LO+Iz9H5A35CI6wWRwiOz6WQqdU8mrLGYlVgZSM3UNYWyYeKKJEZk
-rl4aOxLLTgoAOw==
+R0lGODdhGAAYAMwAAPj4+AAAADOqM2FkZtjY2r7Awujo6V9gYeDg4b/Cwzc3N0pKSl9fX5GRkVVV
+VXl6fKSmpLCxsouNkFdXV97d4N7e4N7g4IyMjZyen6SopwAAAAAAAAAAAAAAAAAAAAAAACwAAAAA
+GAAYAAAFlSAgjkBgmuUZlONKii4br/MLv/Gt47ia/rYcT2bb0VowVFFF8+2K0KjUJqhOo1XBlaQV
+Zbdc7Rc8ylrJ5THaa5YqFozBgOFQAMznl6FhsO37UwMEBgiFFRYIhANXBxgJBQUJkpAZi1MEBxAR
+kI8REAMUVxIEcgcDpqYEElcODwSvsK8PllMLAxeQkA0DDmhvEwwLdmAhADs=
 '''
         ,'csvex_img':'''\
-R0lGODdhGAAYAJkAAP///wAAADOqMwAAACwAAAAAGAAYAAACVYQPoZobeR4yEtZ3J511e845zah1
-oKV9WEQxqYOJX0rXtoDndp3jO6/7aXoC4UTnMxqCgKKSqVwmo9TWonGF1DIZLc3UNYWuYeOKJEZw
-ZemIzI11IQoAOw==
+R0lGODdhGAAYAMwAAPj4+AAAADOqM2FkZtjY2r7AwuDg4b/Cw+jo6V9gYTc3N0pKSlVVVV9fX5GR
+kaSmpLCxsnl6fIuNkN7g4N7d4KSop4yMjZyen1dXVwAAAAAAAAAAAAAAAAAAAAAAAAAAACwAAAAA
+GAAYAAAFkiAgjkBgmuUZlONKii4br/MLv/Gt47ia/rYcT2bb0VowVFFF8+2K0Kh0JKhap1BrFZu9
+cl9awZd03Y4BXvQ5DVUsGoNBg6FAm6MOhA3h4A4ICAaCBhOCCANYAxcHBQUHj44ViFMECQ8QjY0Q
+DwMUWBIEcQkDo6MEElgMEQSsrawRk1MLAxaZBQ4DDGduGA0LdV8hADs=
 '''
         ,'qryex_img':'''\
-R0lGODdhGAAYAJkAAP///wAAADNm/zOqMywAAAAAGAAYAAACXIQPoZobeR4yEtZ3J511e845zah1
-oKV9WEQxqYOJX0rX9oDndp3jO6/7aXoD4UTnMxqCgKKSqVwmo9SD4GrFGq4CGvbbBQO03m4WQZ5w
-s+ZxWt12o+PVX/pORxQAADs=
+R0lGODdhGAAYAJkAAP///56fnQAAAP8AACwAAAAAGAAYAAACXIQPoporeR4yEtZ3J511e845zah1
+oKV9WEQxqYOJX0rX9oDndp3jO6/7aXqDVOCIPB50Pk0yaQgCijSlITBt/p4B6ZbL3VkBYKxt7DTX
+0BN2uowUw+NndVq+tk8KADs=
 '''
         ,'sqlin_img':'''\
-R0lGODdhGAAYAMwAAP///46z2Z6fnenp6WSJtsLCwVRymHul03ym1IODgqHA4GSJt4Co04OPno6z
-2mKGs3agzAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACwAAAAA
-GAAYAAAFoCAgjmRpnqOgrmuCmsIgz7LgvmISF3xfDLYTS0crAm+k4c7nA8JaMSNN8FQRmU1qSSmd
-PgmPB2FMLpuTDYJizW67FQS0OkCv2+/xVFpx79vzOQ0LfoQBgAAJaYV+BiQJC4OLd40jCWN0Dg4I
-m5ydm5Q5kAGepAgHp6CIl6esra4HqZYQpwwHtbe2DLq1sWZlC2SQwrEGxcbHyMY4y8zNJSEAOw==
+R0lGODdhGAAYALsAAP///46z2Xul02SJtp6fnenp6f8AAMLCwaHA4IODgoCo01RymIOPnmKGswAA
+AAAAACwAAAAAGAAYAAAEkRDIOYm9N9G9SfngR2jclnhHqh7FWAKZF84uFxdr3pb3TPOWEy6n2tkG
+jcZgyWw6OwOEdEqtIgYbRjTA7Xq/WIoW8S17wxOteR1AS9Ts8sI08Aru+Px9TknU9YB5fBN+AYGH
+gxJ+dwoCjY+OCpKNiQAGBk6ZTgsGE5edLy+XlqOhop+gpiWoqqGoqa0Ur7CxABEAOw==
 '''
         ,'sqlsav_img':'''\
-R0lGODdhGAAYALsAAP///46z2Xul056fnenp6WSJtsLCwf8AAKHA4IODgmSJt4Co01RymIOPnmKG
-s3agzCwAAAAAGAAYAAAElxDIOYe9N9G9B/ngN2jclnhGqhrEWGJnKLckBaPr2nL3LA+8DC6X2nWE
-vhDwWHA4CtCodGobFBDYrHaLKNga14B4TC57K2BEeU0+SxJgtjzgBsALczaDkoCSBYCBgoB7E314
-g4mChW9+io+MdgUPgAsClpiXC5uWewefn1IKo6SlpIygJaoboAerr6muryWpALKzrLe4JREAOw==
+R0lGODdhGAAYALsAAP///56fnZyen/8AAGSJtqHA4Hul0+jo6Y6z2cLCwaSmpIODgmKGs4yMjYOP
+ngAAACwAAAAAGAAYAAAEgxDISacSOItVOxVHKB5C41mKsihH4r4kdyoEwxB4rhMnIDCFoHAY5J0E
+BCFiyWQaPY6kYUqtGp6dxm6b60kG4LC3FwaPyeJzpzzwaDQTsbkTqNsx3zmgfapPAnt6Y3Z1Amlq
+AoR3cF5+EoqFY4k9jpSAfQKSkJCDm4SZXpN9l5aUoB4RADs=
+'''
+        ,'dbdef_img':'''\
+R0lGODdhGAAYAMwAAPj4+DOqM2SJtmFkZqHA4NjY2sLCwejo6b7Awpyen3ul046z2aSop+Dg4V9g
+YZGRkaSmpLCxsouNkDc3N2dxekpKSlVVVYyMjWKGs4ODgnl6fJ+goYOPnl9fX0xMTAAAACwAAAAA
+GAAYAAAFuCAgjuTIJGiaZGVLJkcsH9DjmgxzMYfh/4fVDcAQCDDGpNI4hGAI0KgUKhgmBNGFdrut
+3jhYhXhMVnhdj6U6OWy7h4G4/O2Sx+n1OZ5kD5QmHgOCAx0TJXN3Iw8HLQc2InoAfiIUBQcNmJkN
+BxSSiS0DCT8/CAYMA55DBQMQEQilCBGndBKrAw4Ot7kFEm+rG66vsRCob7WCube3vG8WGgXQ0dAa
+nW8VAxfCCA8DFnsAExUWAxWGeCEAOw==
 '''
       }   
         #transform 'in place' base64 icons into tk_icons 
