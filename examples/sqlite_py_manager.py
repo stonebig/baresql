@@ -74,7 +74,7 @@ class App:
         self.menu_help.add_command(label='about',
             command = lambda : messagebox.showinfo( message=
             """Sqlite_py_manager : a graphic SQLite Client in 1 Python file
-            \n(version 2014-05-30a 'Token Heads')
+            \n(version 2014-05-30a 'Token Right')
             \n(https://github.com/stonebig/baresql/blob/master/examples)""")) 
 
 
@@ -941,49 +941,48 @@ class baresql():
 
                 
     def get_token(self, sql, start = 0):
-        "return next token type and ending+1 from given sql start position"
+        "for given sql start position, give token type and next token start"
         length = len(sql) ; 
         i = start ; token = 'TK_OTHER'
         dico = {' ':'TK_SP', '\t':'TK_SP', '\n':'TK_SP', '\f':'TK_SP',
          '\r':'TK_SP', '(':'TK_LP', ')':'TK_RP', ';':'TK_SEMI', ',':'TK_COMMA',
-         '/':'TK_OTHER', "'":'TK_STRING',"-":'TK_OTHER',
+         '/':'TK_OTHER', "'":'TK_STRING',"-":'TK_OTHER', 
          '"':'TK_STRING', "`":'TK_STRING'}
         if length > start:
             if sql[i] == "-" and i < length and sql[i:i+2] == "--" :
-                #an end-of-line comment
+                #this Token is an end-of-line comment : --blabla
                 token='TK_COM'
-                i = sql.find("\n", start) #TK_COM feeding
-                if i <= 0:
-                    i = length
+                i = sql.find("\n", start)  
+                if i <= 0: i = length  
             elif sql[i] == "/" and i < length and sql[i:i+2] == "/*":
-                #a comment block
+                #this Token is a comment block : /* and bla bla \n bla */
                 token='TK_COM'
-                i = sql.find("*/",start)+2 #TK_COM feeding
-                if i <= 1:
-                    i = length
-            elif sql[i] not in dico : #TK_OTHER feeding
-                while i < length and sql[i] not in dico:
-                    i += 1
+                i = sql.find("*/",start)+2  
+                if i <= 1:  i = length
+            elif sql[i] not in dico : 
+                #this token is a distinct word (tagged as 'TK_OTHER') 
+                while i < length and sql[i] not in dico: i += 1
             else:
+                #default token analyze case
                 token = dico[sql[i]]
-                if token == 'TK_SP': #TK_SP feeding
-                    while (i < length and sql[i] in dico and
-                    dico[sql[i]] == 'TK_SP'):
-                        i += 1
-                elif token == 'TK_STRING': #TK_STRING feeding
+                if token == 'TK_SP':  
+                    #Find the end of the 'Spaces' Token just detected  
+                    while (i < length and sql[i] in dico and 
+                      dico[sql[i]] == 'TK_SP'):  i += 1
+                elif token == 'TK_STRING':  
+                    #Find the end of the 'String' Token just detected  
                     delimiter = sql[i]
-                    if delimiter != "'": token = 'TK_ID'
-                    if i < length : i += 1
+                    if delimiter != "'": token = 'TK_ID' #usefull nuance ?
                     while (i < length  ):
-                        if sql[i] != delimiter :
-                            i += 1 #other (don't bother, case)
+                        i = sql.find(delimiter , i+1)
+                        if i <= 0: # String is never closed
+                            i = length
+                            token = 'TK_ERROR'
                         elif i < length -1 and sql[i+1] == delimiter :
-                            i += 2   # '' case
-                        else:
-                            break 
-                    if sql[i] != delimiter : 
-                        token = 'TK_ERROR'
-                    if i < length : i += 1  
+                            i += 1   # double '' case, so ignore and continue
+                        else: 
+                            i += 1
+                            break #normal End of a  String 
                 else: 
                     if i < length : i += 1
         return i, token
