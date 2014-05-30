@@ -74,7 +74,7 @@ class App:
         self.menu_help.add_command(label='about',
             command = lambda : messagebox.showinfo( message=
             """Sqlite_py_manager : a graphic SQLite Client in 1 Python file
-            \n(version 2014-05-30a 'Token Right')
+            \n(version 2014-05-30b 'Trigger Attention')
             \n(https://github.com/stonebig/baresql/blob/master/examples)""")) 
 
 
@@ -138,7 +138,6 @@ class App:
            text = ((filename.replace("\\","/")).split("/")[-1]).split(".")[0]
            with io.open(filename, encoding = Guess_encoding(filename)[0]) as f:
                new_tab_ref = self.n.new_query_tab(text, f.read())
-       
 
     def savdb_script(self):
        """save database as a script file"""
@@ -149,7 +148,7 @@ class App:
        with  io.open(filename,   'w', encoding='utf-8') as f:
            f.write ("/*utf-8 bug safety : 你好 мир Artisou à croute blonde*/\n")
            #Create table, view, index, pydef 
-           for category in ['table', 'view', 'trigger', 'index','pydef']:
+           for category in ['table', 'view', 'index','pydef']:
                for k in get_things(self.conn,  category, ""):
                    if k[2] != [] and k[2] !='None' :  f.write(k[2] + ";\n" ) 
            #Creating Datas
@@ -283,19 +282,18 @@ R0lGODdhGAAYAJkAAP///zOqMwCqMwAAACwAAAAAGAAYAAACSoSPqcvt4aIJEFU5g7AUC9px1/JR
 3yYy4LqAils2IZdFMzCP6nhLd2/j6VqHD+1RAQKLHVfC+VwtcT3pNKOTYjTC4SOK+YbH5EYBADs=
 '''
         ,'deltab_img':'''\
-R0lGODdhGAAYAKoAAP///8zVzP9VAGaAmf//zP9VMwAAAAAAACwAAAAAGAAYAAADVQi63P4wykmF
-dVbUzLLeF+B9zGCeZlaMBLWM1uC+I4CiUW0HfB9AMMXA13vALkPir1HzJIkYjsKjXHZCNEF1ltnO
-dsovGPp9+sTmYtk7S/PQbJc7kAAAOw==
+R0lGODdhGAAYAKoAAP///56fnf9VAMzVzP9VMwAAAAAAAAAAACwAAAAAGAAYAAADZAi63P4wykmB
+uO6KFnpX2raEnBeMGkgyZqsRoci2Znx9zKDjQGd7Dd2AFoiZgjuXEZhLomy9U3MojVk0PIUQt7re
+kFSVTCxdbMsPLDgLYZ+JxDU8PuXN3c4JPqxHA84Ue2wPbAkAOw==
 '''
         ,'deltabresult_img':'''\
-R0lGODdhGAAYAJkAAP///5mqmf8AAAAAACwAAAAAGAAYAAACV4wfoMutyZA0DsBF372xzT95XBWN
-GSmmqIqN66mtbCy3swxbLprnrwkKAgWCT4MIBBCLmMXSIjIsi4fpYfZUEm0lx/Tm+3bHimxWpxKX
-n73E+YgExYXEAgA7
+R0lGODdhGAAYAJkAAP///56fnf8AAAAAACwAAAAAGAAYAAACXIyPBsu9CYObQDFbqcM16cZFondJ
+z0ie33aA5nqGL4y4cCnf8cytdanr5HS/k0CAMhxzRyQu0Gw9m8gDtdhpNBdbIW/G7e5sDqprGBak
+x0CAmXGVqsTlpciOOhYAADs=
 '''
         ,'newtab_img':'''\
-R0lGODdhGAAYAJkAAP///8zVzAAAAAAAACwAAAAAGAAYAAACToSPqcvtD6GYkU1R1z2h+2BdogAi
-X3eMYsmxrHqxxikb25zQ9A3UaMPz1XJE09BUbDl8uSMnOdOdoD3ph/pjMI1LrBOH5Da2ynHTKk0U
-AAA7
+R0lGODdhGAAYAJkAAP///56fnQAAAAAAACwAAAAAGAAYAAACSoSPqcsm36KDsj1R1d00840E4ige
+3xWSo9YppRGwGKPGCUrXtfQCut3ouYC5IHEhTCSHRt4x5fytIlKSs0l9HpZKLcy7BXOhRUYBADs=
 '''
         ,'csvin_img':'''\
 R0lGODdhGAAYAMwAAPj4+AAAADOqM2FkZtjY2r7Awujo6V9gYeDg4b/Cwzc3N0pKSl9fX5GRkVVV
@@ -989,6 +987,9 @@ class baresql():
             elif sql[i] not in dico : 
                 #this token is a distinct word (tagged as 'TK_OTHER') 
                 while i < length and sql[i] not in dico: i += 1
+                #For Trigger creation, we need to detect BEGIN END 
+                if  sql[start:i].upper()=='BEGIN' : token = 'TK_BEG'
+                elif sql[start:i].upper()=='END' : token = 'TK_END'
             else:
                 #default token analyze case
                 token = dico[sql[i]]
@@ -1017,14 +1018,17 @@ class baresql():
 
     def get_sqlsplit(self, sql, remove_comments=False):
         """split an sql file in list of separated sql orders"""
-        beg = end = 0; length = len(sql)
+        beg = end = 0; length = len(sql) ; translvl = 0
         sqls = []
         while end < length-1:
             tk_end , token = self.get_token(sql,end)
-            if token == 'TK_SEMI' or tk_end == length: # end of a single sql
+            if token == 'TK_BEG' : translvl += 1
+            elif token == 'TK_END' : translvl -= 1
+            elif (token == 'TK_SEMI' and translvl==0) or tk_end == length: 
+                # end of a single sql
                 sqls.append(sql[beg:tk_end])
                 beg = tk_end
-            if token == 'TK_COM' and remove_comments: # clear comments option
+            elif token == 'TK_COM' and remove_comments: # clear comments option
                 sql = sql[:end]+' '+ sql[tk_end:]
                 length = len(sql)
                 tk_end = end + 1

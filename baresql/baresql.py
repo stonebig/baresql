@@ -182,6 +182,9 @@ class baresql(object):
             elif sql[i] not in dico : 
                 #this token is a distinct word (tagged as 'TK_OTHER') 
                 while i < length and sql[i] not in dico: i += 1
+                #For Trigger creation, we need to detect BEGIN END 
+                if  sql[start:i].upper()=='BEGIN' : token = 'TK_BEG'
+                elif sql[start:i].upper()=='END' : token = 'TK_END'
             else:
                 #default token analyze case
                 token = dico[sql[i]]
@@ -209,20 +212,23 @@ class baresql(object):
 
 
     def get_sqlsplit(self, sql, remove_comments=False):
-        "split an sql file in list of separated sql orders"
-        beg = end = 0; length = len(sql)
+        """split an sql file in list of separated sql orders"""
+        beg = end = 0; length = len(sql) ; translvl = 0
         sqls = []
-        while end < length:
+        while end < length-1:
             tk_end , token = self.get_token(sql,end)
-            if token == 'TK_SEMI' or tk_end == length: # end of a single sql
+            if token == 'TK_BEG' : translvl += 1
+            elif token == 'TK_END' : translvl -= 1
+            elif (token == 'TK_SEMI' and translvl==0) or tk_end == length: 
+                # end of a single sql
                 sqls.append(sql[beg:tk_end])
                 beg = tk_end
-            if token == 'TK_COM' and remove_comments: # clear comments option
-                sql = sql[:end]+' '+ sql[tk_end:] 
+            elif token == 'TK_COM' and remove_comments: # clear comments option
+                sql = sql[:end]+' '+ sql[tk_end:]
                 length = len(sql)
-                tk_end = end + 1 
-            end = tk_end 
-        if  beg < length  :
+                tk_end = end + 1
+            end = tk_end
+        if beg < length :
                sqls.append(sql[beg:])
         return sqls
         
