@@ -74,7 +74,7 @@ class App:
         self.menu_help.add_command(label='about',
             command = lambda : messagebox.showinfo( message=
             """Sqlite_py_manager : a graphic SQLite Client in 1 Python file
-            \n(version 2014-05-30b 'Trigger Attention')
+            \n(version 2014-05-31a 'Foreign Key')
             \n(https://github.com/stonebig/baresql/blob/master/examples)""")) 
 
 
@@ -148,22 +148,30 @@ class App:
        with  io.open(filename,   'w', encoding='utf-8') as f:
            f.write ("/*utf-8 bug safety : 你好 мир Artisou à croute blonde*/\n")
            #Create table, view, index, pydef 
+           # don't mess with the foreign key
+           for row in self.conn.execute("PRAGMA foreign_keys"):
+               if row[0] == 1: 
+                   f.write("\nPRAGMA foreign_keys = OFF; /*SQlite*/;\n")        
+                   f.write("/* SET foreign_key_checks = 0; /*--Mysql */;\n\n")
            for category in ['table', 'view', 'index','pydef']:
                for k in get_things(self.conn,  category, ""):
                    if k[2] != [] and k[2] !='None' :  f.write(k[2] + ";\n" ) 
            #Creating Datas
            for i in get_things(self.conn,  'table', ""):
-               f.write("-- Inserting Datas in Table [%s] \n" % i[1])
-               for row in self.conn.execute("select * from [%s]"%i[1]):
+               f.write("/* Inserting Datas in Table  [%s]  */;\n" % i[1])
+               for row in self.conn.execute("select * from  [%s] "%i[1]):
                    re = ",".join(["'"+c.replace("'","''")+"'" if isinstance(c,
                         (type(u'a'), type('a'))) else "%s"%c for c in row])
-                   f.write("insert into [%s] values(%s);\n"%(i[1],re))    
+                   f.write("insert into  %s  values(%s);\n"%(i[1],re))    
            #and now the triggers
            for k in get_things(self.conn,  'trigger', ""):
                if k != [] :  f.write(k[2] + ";\n" ) 
            #and the final cherry : the foreign key
            for row in self.conn.execute("PRAGMA foreign_keys"):
-               if row[0] == 1: f.write("\nPRAGMA foreign_keys = ON;\n")        
+               if row[0] == 1: 
+                   f.write("\nPRAGMA foreign_keys = ON; /*SQlite*/;\n")        
+                   f.write("\nPRAGMA foreign_keys = ON; /*(bug)SQlite*/;\n")        
+                   f.write("/*  SET foreign_key_checks = 1; /* --Mysql*/;\n\n")
  
     def sav_script(self):
        """save a script in a file"""
