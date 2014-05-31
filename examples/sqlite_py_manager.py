@@ -158,11 +158,12 @@ class App:
                    if k[2] != [] and k[2] !='None' :  f.write(k[2] + ";\n" ) 
            #Creating Datas
            for i in get_things(self.conn,  'table', ""):
-               f.write("/* Inserting Datas in Table  [%s]  */;\n" % i[1])
-               for row in self.conn.execute("select * from  [%s] "%i[1]):
+               tbl = ("[%s]"%i[1]) if ("[%s]"%i[1]) in i[2] else i[1]
+               f.write("/* Inserting Datas in Table  %s */;\n" % tbl)
+               for row in self.conn.execute("select * from  %s " % tbl):
                    re = ",".join(["'"+c.replace("'","''")+"'" if isinstance(c,
                         (type(u'a'), type('a'))) else "%s"%c for c in row])
-                   f.write("insert into  %s  values(%s);\n"%(i[1],re))    
+                   f.write("insert into  %s  values(%s);\n"%(tbl,re))    
            #and now the triggers
            for k in get_things(self.conn,  'trigger', ""):
                if k != [] :  f.write(k[2] + ";\n" ) 
@@ -170,7 +171,7 @@ class App:
            for row in self.conn.execute("PRAGMA foreign_keys"):
                if row[0] == 1: 
                    f.write("\nPRAGMA foreign_keys = ON; /*SQlite*/;\n")        
-                   f.write("\nPRAGMA foreign_keys = ON; /*(bug)SQlite*/;\n")        
+                   f.write("\nPRAGMA foreign_keys = ON; /*(bug?)SQlite*/;\n")        
                    f.write("/*  SET foreign_key_checks = 1; /* --Mysql*/;\n\n")
  
     def sav_script(self):
