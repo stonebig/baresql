@@ -151,14 +151,15 @@ class App:
            # don't mess with the foreign key
            for row in self.conn.execute("PRAGMA foreign_keys"):
                if row[0] == 1: 
-                   f.write("\nPRAGMA foreign_keys = OFF; /*SQlite*/;\n")        
-                   f.write("/* SET foreign_key_checks = 0; /*--Mysql */;\n\n")
+                   f.write("\nPRAGMA foreign_keys = OFF; /* SQlite */;\n")        
+                   f.write("/* SET foreign_key_checks = 0;/*if Mysql*/;\n\n")
+               f.write("/* SET sql_mode = 'PIPES_AS_CONCAT';/*if Mysql*/;\n\n")
            for category in ['table', 'view', 'index','pydef']:
                for k in get_things(self.conn,  category, ""):
                    if k[2] != [] and k[2] !='None' :  f.write(k[2] + ";\n" ) 
-           #Creating Datas
+           #Creating Datas 
            for i in get_things(self.conn,  'table', ""):
-               tbl = ("[%s]"%i[1]) if ("[%s]"%i[1]) in i[2] else i[1]
+               tbl = ('"%s"'%i[1])  
                f.write("/* Inserting Datas in Table  %s */;\n" % tbl)
                for row in self.conn.execute("select * from  %s " % tbl):
                    re = ",".join(["'"+c.replace("'","''")+"'" if isinstance(c,
@@ -233,7 +234,7 @@ class App:
                 text = att_db + " (attached database)", values = (att_db,"") )              
             #add attached db's master_table, Tables, Views, Trigger, and Index  
             for categ in ['master_table', 'table', 'view', 'trigger', 'index']:
-                self.add_thingsnew( id0, categ, att_db +".")
+                self.add_thingsnew( id0, categ, att_db )
 
 
     def quit_db(self):
@@ -389,8 +390,10 @@ nW8VAxfCCA8DFnsAExUWAxWGeCEAOw==
         "add a sub-tree to database tree pan"
         tables = get_things(self.conn,  what, attached_db) 
         #level 1 : create  the "what" node (as not empty)
+        id = lambda t: ('"%s".'%t.replace('"', '""')) if t !="" else t 
+        attached = id(attached_db) 
         if len(tables)>0:
-            idt = self.db_tree.insert(root_id,"end", "%s%s" % (attached_db, what)
+            idt = self.db_tree.insert(root_id,"end","%s%s"%(attached, what)
                    , text="%s (%s)" % (what, len(tables)) , values=("","") )  
             #Level 2 : print object creation, and '(Definition)' if Table/View
             for tab in tables:
@@ -399,17 +402,17 @@ nW8VAxfCCA8DFnsAExUWAxWGeCEAOw==
                     #it's a table : prepare a Query with names of each column
                     colnames = [col[1] for col in tab[3]]
                     columns = [col[0] for col in tab[3]]
-                    sql3 = "select ["+"] , [".join(colnames)+"] from " + (
-                            "%s[%s]"% (attached_db,tab[1])  )
-                idc = self.db_tree.insert(idt,"end",  "%s%s" % (attached_db,tab[0]) 
+                    sql3 = 'select "'+'" , "'.join(colnames)+'"  from ' + (
+                            '%s"%s"'% (attached,tab[1])  )
+                idc = self.db_tree.insert(idt,"end",  "%s%s" % (attached,tab[0]) 
                      ,text=tab[1],tags=('run',) , values=(definition,sql3))                    
                 if sql3 != "":
-                    self.db_tree.insert(idc,"end",("%s%s.%s"% (attached_db,tab[1], -1)),
+                    self.db_tree.insert(idc,"end",("%s%s.%s"% (attached,tab[1], -1)),
                     text = ['(Definition)'],tags=('run',), values=(definition,""))
                     #level 3 : Insert a line per column of the Table/View
                     for c in range(len(columns)):
                         self.db_tree.insert(idc,"end",
-                           ("%s%s.%s" % (attached_db, tab[1], c)),
+                           ("%s%s.%s" % (attached, tab[1], c)),
                            text = columns[c], tags = ('run_up',), values = ('',''))
         return [i[1] for i in tables]
 
@@ -607,11 +610,11 @@ def guess_sql_creation(table_name, separ, decim, header, data_is, quoter='"'):
         except:
             typ[i] = 'TEXT'
     if header:
-        head = ",\n".join([('[%s] %s'%(r[i],typ[i])) for i in range(len(r))])
-        sql_crea = ("CREATE TABLE [%s] (%s);"  % (table_name, head))
+        head = ",\n".join([('"%s" %s'%(r[i],typ[i])) for i in range(len(r))])
+        sql_crea = ('CREATE TABLE "%s" (%s);'  % (table_name, head))
     else:
         head = ",".join(["c_"+("000" +str(i))[-3:] for i in range(len(r))])
-        sql_crea = ("CREATE TABLE [%s] (%s);"  % (table_name, head))
+        sql_crea = ('CREATE TABLE "%s" (%s);'  % (table_name, head))
     return sql_crea, typ   , head                 
 
      
@@ -809,14 +812,14 @@ def import_csvtb_ok(thetop, entries, actions):
         sql, typ, head = guess_sql_creation(table_name, separ, decim,
                               d['Header line'], d["first 3 lines"], quotechar)
         if d['Create table']:
-            curs.execute("drop TABLE if exists [%s];" % table_name)
+            curs.execute('drop TABLE if exists "%s";' % table_name)
             if d['use manual creation request']:
-                sql = ("CREATE TABLE [%s] (%s);"  % 
+                sql = ('CREATE TABLE "%s" (%s);'  % 
                        (table_name, d["creation request"]))
             curs.execute(sql )
         if d['Replace existing data'] :
-            curs.execute("delete from [%s];" % table_name)
-        sql="INSERT INTO [%s]  VALUES(%s);" % (
+            curs.execute('delete from "%s";' % table_name)
+        sql='INSERT INTO "%s"  VALUES(%s);' % (
                table_name,  ", ".join(["?"]*len(typ)))
 
         try:
@@ -877,7 +880,7 @@ def export_csvtb( actions):
         #get final information 
         definition , query = db_tree.item(selitem, "values")
         if query != "": #run the export_csv dialog
-            title = ("Export Table [%s] to ?" %db_tree.item(selitem, "text"))
+            title = ('Export Table "%s" to ?' %db_tree.item(selitem, "text"))
             export_csv_dialog(query, title, actions )   
 
               
@@ -912,6 +915,8 @@ def get_things( conn,   what , attached_db = "", tbl =""):
                      '{1:s}','{1:s}', "ATTACH DATABASE '{2:s}' as '{1:s}'",''),
           'pydef': ("#N/A", '{0:s}','{0:s}','{1:s}', '')
           }
+    id = lambda t: ('"%s".'%t.replace('"', '""')) if t !="" else t 
+    attached = id(attached_db) 
     order = dico[what] if type(dico[what]) != type('e') else dico[dico[what]] 
     Tables = []
     if what == "pydef": #pydef request is not sql
@@ -919,7 +924,7 @@ def get_things( conn,   what , attached_db = "", tbl =""):
 
     else:
         #others are sql request
-        resu = conn.execute(order[0].format(attached_db,what,tbl)).fetchall()
+        resu = conn.execute(order[0].format(attached,what,tbl)).fetchall()
         #result must be transformed in a list, and attached db 'main' removed
         resu = list(resu) if what != 'attached_databases' else list(resu)[1:]
     #generate tree list for this 'what' category level :
