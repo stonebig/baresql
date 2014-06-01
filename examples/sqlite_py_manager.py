@@ -426,11 +426,18 @@ nW8VAxfCCA8DFnsAExUWAxWGeCEAOw==
                     sql_error = True                    
                     break               
 
-        if self.conn.conn.in_transaction :
+        try :
+            if self.conn.conn.in_transaction : #python 3.2
+                if not sql_error: cu.execute("COMMIT;")
+                else : cu.execute("ROLLBACK;")
+        except:
             if not sql_error:
-                cu.execute("COMMIT;")
+                try :    cu.execute("COMMIT;")
+                except : pass    
             else :
-                cu.execute("ROLLBACK;")
+                try : cu.execute("ROLLBACK;")
+                except : pass    
+            
         self.conn.conn.isolation_level = isolation #restore standard
 
 class notebook_for_queries():
