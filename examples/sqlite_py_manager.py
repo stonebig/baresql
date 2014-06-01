@@ -74,7 +74,7 @@ class App:
         self.menu_help.add_command(label='about',
             command = lambda : messagebox.showinfo( message=
             """Sqlite_py_manager : a graphic SQLite Client in 1 Python file
-            \n(version 2014-05-31a 'Foreign Key')
+            \n(version 2014-06-01a 'Commit and Rollback')
             \n(https://github.com/stonebig/baresql/blob/master/examples)""")) 
 
 
@@ -146,34 +146,8 @@ class App:
               filetypes=[("default","*.sql"),("other","*.txt"),("all","*.*")])
        if filename == "": return
        with  io.open(filename,   'w', encoding='utf-8') as f:
-           f.write ("/*utf-8 bug safety : 你好 мир Artisou à croute blonde*/\n")
-           #Create table, view, index, pydef 
-           # don't mess with the foreign key
-           for row in self.conn.execute("PRAGMA foreign_keys"):
-               if row[0] == 1: 
-                   f.write("\nPRAGMA foreign_keys = OFF; /* SQlite */;\n")        
-                   f.write("/* SET foreign_key_checks = 0;/*if Mysql*/;\n\n")
-               f.write("/* SET sql_mode = 'PIPES_AS_CONCAT';/*if Mysql*/;\n\n")
-           for category in ['table', 'view', 'index','pydef']:
-               for k in get_things(self.conn,  category, ""):
-                   if k[2] != [] and k[2] !='None' :  f.write(k[2] + ";\n" ) 
-           #Creating Datas 
-           for i in get_things(self.conn,  'table', ""):
-               tbl = ('"%s"'%i[1])  
-               f.write("/* Inserting Datas in Table  %s */;\n" % tbl)
-               for row in self.conn.execute("select * from  %s " % tbl):
-                   re = ",".join(["'"+c.replace("'","''")+"'" if isinstance(c,
-                        (type(u'a'), type('a'))) else "%s"%c for c in row])
-                   f.write("insert into  %s  values(%s);\n"%(tbl,re))    
-           #and now the triggers
-           for k in get_things(self.conn,  'trigger', ""):
-               if k != [] :  f.write(k[2] + ";\n" ) 
-           #and the final cherry : the foreign key
-           for row in self.conn.execute("PRAGMA foreign_keys"):
-               if row[0] == 1: 
-                   f.write("\nPRAGMA foreign_keys = ON; /*SQlite*/;\n")        
-                   f.write("\nPRAGMA foreign_keys = ON; /*(bug?)SQlite*/;\n")        
-                   f.write("/*  SET foreign_key_checks = 1; /* --Mysql*/;\n\n")
+           for line in self.conn.iterdump():
+               f.write('%s\n' % line)
  
     def sav_script(self):
        """save a script in a file"""
@@ -420,7 +394,13 @@ nW8VAxfCCA8DFnsAExUWAxWGeCEAOw==
     def create_and_add_results(self, instructions, tab_tk_id):
         """execute instructions and add them to given tab results"""
         a_jouer = self.conn.get_sqlsplit(instructions, remove_comments = False) 
-        for instruction in a_jouer: #in hope ine day SQLite keep comments
+        #must read :https://www.youtube.com/watch?v=09tM18_st4I#t=1751
+        #stackoverflow.com/questions/15856976/transactions-with-python-sqlite3
+        isolation = self.conn.conn.isolation_level 
+        if isolation == "" : #Python default, inconsistent with default dump.py
+            self.conn.conn.isolation_level = None #right behavior 
+        cu = self.conn.conn.cursor() ; sql_error = False
+        for instruction in a_jouer:  
             instru = self.conn.get_sqlsplit(instruction, 
                                             remove_comments = True)[0]
             instru = instru.replace(";","").strip(' \t\n\r')
@@ -433,7 +413,7 @@ nW8VAxfCCA8DFnsAExUWAxWGeCEAOw==
                 self.n.add_treeview(tab_tk_id, titles, rows, "Info", pydef)
             elif instruction != "":
                 try :
-                    cur = self.conn.execute(instruction)
+                    cur = cu.execute(instruction)
                     rows = cur.fetchall()
                     #A query may have no result( like for an "update")
                     if cur.description != None :
@@ -443,8 +423,15 @@ nW8VAxfCCA8DFnsAExUWAxWGeCEAOw==
                 except sqlite.Error as msg:#OperationalError
                     self.n.add_treeview(tab_tk_id, ('Error !',), [(msg,)],
                                         "Error !", first_line )
+                    sql_error = True                    
                     break               
 
+        if self.conn.conn.in_transaction :
+            if not sql_error:
+                cu.execute("COMMIT;")
+            else :
+                cu.execute("ROLLBACK;")
+        self.conn.conn.isolation_level = isolation #restore standard
 
 class notebook_for_queries():
     """Create a Notebook with a list in the First frame
@@ -954,6 +941,29 @@ class baresql():
         self.conn.close
         self.conn_def = {}
             
+    def iterdump(self):
+        "slightly improved database dump over default sqlite3 module dump"
+        #Force detection of utf-8
+        yield("/*utf-8 bug safety : 你好 мир Artisou à croute blonde*/\n")
+        #Add the Python functions pydef 
+        for k in self.conn_def.values():   
+            yield(k['pydef'] + ";\n" ) 
+        #Disable Foreign Constraints at Load 
+        yield("PRAGMA foreign_keys = OFF; /*if SQlite */;")        
+        yield("\n/* SET foreign_key_checks = 0;/*if Mysql*/;")
+        #How-to parametrize Mysql to SQL92 standard 
+        yield("/* SET sql_mode = 'PIPES_AS_CONCAT';/*if Mysql*/;")
+        yield("/* SET SQL_MODE = ANSI_QUOTES; /*if Mysql*/;\n")
+        #Now the standard dump (notice it uses BEGIN TRANSACTION) 
+        for line in self.conn.iterdump():
+               yield( line)
+        #Re-instantiate Foreign_keys = True
+        for row in self.conn.execute("PRAGMA foreign_keys"):
+            flag = 'ON' if row[0] == 1 else 'OFF'
+            yield("PRAGMA foreign_keys = %s;/*if SQlite*/;"%flag)        
+            yield("PRAGMA foreign_keys = %s;/*if SQlite, twice*/;"%flag)        
+            yield("\n/*SET foreign_key_checks = %s;/*if Mysql*/;\n"%row[0])
+        
     def execute(self, sql , env = None):
         "execute sql but intercept log"
         if self.do_log: self.log.append(sql)
@@ -1001,9 +1011,6 @@ class baresql():
             elif sql[i] not in dico : 
                 #this token is a distinct word (tagged as 'TK_OTHER') 
                 while i < length and sql[i] not in dico: i += 1
-                #For Trigger creation, we need to detect BEGIN END 
-                if  sql[start:i].upper()=='BEGIN' : token = 'TK_BEG'
-                elif sql[start:i].upper()=='END' : token = 'TK_END'
             else:
                 #default token analyze case
                 token = dico[sql[i]]
@@ -1032,13 +1039,20 @@ class baresql():
 
     def get_sqlsplit(self, sql, remove_comments=False):
         """split an sql file in list of separated sql orders"""
-        beg = end = 0; length = len(sql) ; translvl = 0
+        beg = end = 0; length = len(sql) ; trigger_mode = False
         sqls = []
         while end < length-1:
+            #Special case for Trigger : semicolumn don't count
             tk_end , token = self.get_token(sql,end)
-            if token == 'TK_BEG' : translvl += 1
-            elif token == 'TK_END' : translvl -= 1
-            elif (token == 'TK_SEMI' and translvl==0) or tk_end == length: 
+            if token == 'TK_OTHER':
+                tok = sql[end:tk_end].upper();
+                if tok == "TRIGGER": 
+                    trigger_mode = True; translvl = 0
+                elif trigger_mode and tok in('BEGIN','CASE'): translvl += 1
+                elif trigger_mode and tok == 'END' :  
+                    translvl -= 1
+                    if translvl <=0 : trigger_mode = False
+            elif (token == 'TK_SEMI' and not trigger_mode) or tk_end == length: 
                 # end of a single sql
                 sqls.append(sql[beg:tk_end])
                 beg = tk_end
