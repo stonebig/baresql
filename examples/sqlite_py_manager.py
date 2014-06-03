@@ -27,6 +27,9 @@ class App:
         self.tk_win.option_add('*tearOff', FALSE) # tk documentation recommands 
         self.tk_win.minsize(600,200)              # minimal size
     
+        self.font_size = 10
+        self.font_wheight = 0
+        #self.chg_size()
         #With a Menubar and Toolbar
         self.create_menu()
         self.create_toolbar()
@@ -74,7 +77,7 @@ class App:
         self.menu_help.add_command(label='about',
             command = lambda : messagebox.showinfo( message=
             """Sqlite_py_manager : a graphic SQLite Client in 1 Python file
-            \n(version 2014-06-01a 'Commit and Rollback')
+            \n(version 2014-06-03a 'See me now ?')
             \n(https://github.com/stonebig/baresql/blob/master/examples)""")) 
 
 
@@ -100,7 +103,8 @@ class App:
            ,('qryex_img', lambda x=self: export_csvqr([x.conn, x.n]),
                      "Export Selected Query to a CSV file") 
            ,('sqlin_img', self.load_script , "Load a SQL Script File") 
-           ,('sqlsav_img', self.sav_script,"Save a SQL Script in a File")]
+           ,('sqlsav_img', self.sav_script,"Save a SQL Script in a File") 
+           ,('chgsz_img', self.chg_size,"Modify Font Size")]
     
         for img, action, tip in to_show:
             b = Button(self.toolbar, image= self.tk_icon[img], command= action)
@@ -233,6 +237,26 @@ class App:
            self.create_and_add_results(script, active_tab_id)
            fw.focus_set() #workaround of bug http://bugs.python.org/issue17511
 
+
+    def chg_size(self  ):
+        """change display size"""
+        sizes=[10, 13, 14] 
+        font_types =["TkDefaultFont","TkTextFont","TkFixedFont","TkMenuFont",
+        "TkHeadingFont","TkCaptionFont","TkSmallCaptionFont","TkIconFont",
+        "TkTooltipFont"]
+        ww=['normal','bold']
+        if self.font_size < max(sizes) :
+            self.font_size=min([i for i in sizes  if i> self.font_size])
+        else:
+            self.font_size =sizes[0]; self.font_wheight  = 0
+ 
+        ff='Helvetica' if self.font_size != min(sizes) else 'Courier';#'Times'
+        self.font_wheight =  0 if  self.font_size == min(sizes) else 1
+        for typ in font_types:
+            default_font = font.nametofont(typ)
+            default_font.configure(size=self.font_size,
+                                   weight=ww[self.font_wheight], family=ff)
+
               
     def t_doubleClicked(self, event):
         "action on dbl_click on the Database structure" 
@@ -318,6 +342,11 @@ GAAYAAAFuCAgjuTIJGiaZGVLJkcsH9DjmgxzMYfh/4fVDcAQCDDGpNI4hGAI0KgUKhgmBNGFdrut
 BxSSiS0DCT8/CAYMA55DBQMQEQilCBGndBKrAw4Ot7kFEm+rG66vsRCob7WCube3vG8WGgXQ0dAa
 nW8VAxfCCA8DFnsAExUWAxWGeCEAOw==
 '''
+       ,'chgsz_img':'''\
+R0lGODdhGAAYAJkAAP///wAAADOqMwCqMywAAAAAGAAYAAACZISPGRvpb1iDRjy5KBBWYc0NXjQ9
+A8cdDFkiZyiIwDpnCYqzCF2lr2rTHVKbDgsTJG52yE8R0nRSJA7qNOhpVbFPHhdhPF20w46S+f2h
+xlzceksqu6ET7JwtLRrhwNt+1HdDUQAAOw==
+'''
       }   
         #transform 'in place' base64 icons into tk_icons 
         for key, value in icons.items():
@@ -347,7 +376,7 @@ nW8VAxfCCA8DFnsAExUWAxWGeCEAOw==
             tw.wm_geometry( "+%d+%d" % ( x, y ) )
             label = Label( tw, text = text, justify = LEFT,
                     background = "#ffffe0", relief = SOLID, borderwidth = 1,
-                    font = ( "tahoma", "8", "normal" ) )
+                    ) #font = ( "tahoma", "13", "normal" ) )
             label.pack( ipadx = 1 )
         
         def close( event ):
