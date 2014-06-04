@@ -3,7 +3,7 @@
 from __future__ import print_function, unicode_literals, division #Python2.7
 
 import sqlite3 as sqlite 
-import sys, os, locale, csv , io , codecs
+import sys, os, locale, csv , datetime, io , codecs
 
 try: #We are Python 3.3+
     from tkinter import * 
@@ -77,7 +77,7 @@ class App:
         self.menu_help.add_command(label='about',
             command = lambda : messagebox.showinfo( message=
             """Sqlite_py_manager : a graphic SQLite Client in 1 Python file
-            \n(version 2014-06-03a 'See me now ?')
+            \n(version 2014-06-04a 'Log me out !')
             \n(https://github.com/stonebig/baresql/blob/master/examples)""")) 
 
 
@@ -102,6 +102,8 @@ class App:
            ,('dbdef_img', self.savdb_script,"Save Database as a SQL Script")
            ,('qryex_img', lambda x=self: export_csvqr([x.conn, x.n]),
                      "Export Selected Query to a CSV file") 
+           ,('exe_img', self.exsav_script,
+                     "Run Script+Output to a file (First 200 rec. per Qry)") 
            ,('sqlin_img', self.load_script , "Load a SQL Script File") 
            ,('sqlsav_img', self.sav_script,"Save a SQL Script in a File") 
            ,('chgsz_img', self.chg_size,"Modify Font Size")]
@@ -167,6 +169,7 @@ class App:
        with  io.open(filename,'w', encoding='utf-8') as f:
            f.write ("/*utf-8 bug safety : 你好 мир Artisou à croute blonde*/\n")
            f.write(script)        
+ 
  
     def attach_db(self):
        """attach an existing database"""
@@ -238,6 +241,22 @@ class App:
            fw.focus_set() #workaround of bug http://bugs.python.org/issue17511
 
 
+    def exsav_script(self):
+       """execute script + commands to a script file"""
+       active_tab_id = self.n.notebook.select()
+       if active_tab_id != '':
+           #get current selection (or all)
+           fw =self.n.fw_labels[active_tab_id]
+           script = fw.get(1.0,END)[:-1]   
+           filename = filedialog.asksaveasfilename(defaultextension='.db',
+              title = "execute Script + output in a log file",                          
+              filetypes=[("default","*.txt"),("other","*.log"),("all","*.*")])
+       if filename == "": return
+       with  io.open(filename,'w', encoding='utf-8') as f:
+           f.write ("/*utf-8 bug safety : 你好 мир Artisou à croute blonde*/\n")
+           self.create_and_add_results(script, active_tab_id, limit=200, log=f)
+           fw.focus_set() #workaround of bug http://bugs.python.org/issue17511
+
     def chg_size(self  ):
         """change display size"""
         sizes=[10, 13, 14] 
@@ -284,6 +303,12 @@ class App:
         icons = {'run_img':'''\
 R0lGODdhGAAYAJkAADOqM////wCqMwAAACwAAAAAGAAYAAACM4SPqcvt7wJ8oU5W8025b9OFW0hO
 5EmdKKauSosKL9zJC21FsK27kG+qfUC5IciITConBQA7
+'''
+        ,'exe_img':'''\
+R0lGODdhGAAYALsAAP///zOqM/8AAGSJtqHA4Jyen3ul0+jo6Y6z2cLCwaSmpACqM4ODgmKGs4yM
+jYOPniwAAAAAGAAYAAAEhBDISacqOBdWOy1HKB6F41mKwihH4r4kdypD0wx4rg8nUDSEoHAY5J0K
+AyFiyWQaPY+kYUqtGp4dx26b60kE4LC3FwaPyeJOYM1ur8sCzxrgZovN6sDEHdYD4nkVb2BzPYUV
+hIdyfouMi14BC5COgoqBHQttk5VumxJ1bJuZoJacpKE9EQA7
 '''
         ,'refresh_img':'''\
 R0lGODdhGAAYAJkAAP///zOqMwCqMwAAACwAAAAAGAAYAAACSoSPqcvt4aIJEFU5g7AUC9px1/JR
@@ -420,16 +445,27 @@ xlzceksqu6ET7JwtLRrhwNt+1HdDUQAAOw==
         return [i[1] for i in tables]
 
 
-    def create_and_add_results(self, instructions, tab_tk_id):
+    def create_and_add_results(self, instructions, tab_tk_id,
+                               limit = -1, log = None):
         """execute instructions and add them to given tab results"""
         a_jouer = self.conn.get_sqlsplit(instructions, remove_comments = False) 
         #must read :https://www.youtube.com/watch?v=09tM18_st4I#t=1751
         #stackoverflow.com/questions/15856976/transactions-with-python-sqlite3
-        isolation = self.conn.conn.isolation_level 
+        isolation = self.conn.conn.isolation_level ; counter = 0
         if isolation == "" : #Python default, inconsistent with default dump.py
             self.conn.conn.isolation_level = None #right behavior 
         cu = self.conn.conn.cursor() ; sql_error = False
+        beurk = lambda r : "("+",".join(['"'+s.replace('"','""')+'"' 
+                             if type(s)==type('e') else str(s) for s in r])+")"
+        bip = lambda c : ("\n---------N°%s----------["%counter+ 
+               datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S') +"]\n\n")
+
         for instruction in a_jouer:  
+            if log != None: #write to logFile
+                counter+=1
+                log.write(bip(counter))
+                log.write(instruction)
+                log.write("\n")
             instru = self.conn.get_sqlsplit(instruction, 
                                             remove_comments = True)[0]
             instru = instru.replace(";","").strip(' \t\n\r')
@@ -440,6 +476,8 @@ xlzceksqu6ET7JwtLRrhwNt+1HdDUQAAOw==
                 rows = self.conn.conn_def[pydef]['pydef'].splitlines()
                 rows.append(self.conn.conn_def[pydef]['inst'])
                 self.n.add_treeview(tab_tk_id, titles, rows, "Info", pydef)
+                if log != None: #write to logFile
+                    log.write("\n".join(['("%s")'%r for r in rows])+"\n")
             elif instruction != "":
                 try :
                     cur = cu.execute(instruction)
@@ -449,19 +487,33 @@ xlzceksqu6ET7JwtLRrhwNt+1HdDUQAAOw==
                         titles = [row_info[0] for row_info in cur.description]
                         self.n.add_treeview(tab_tk_id, titles, rows,
                                         "Qry", first_line)
+                        if log != None: #write to logFile
+                            log.write(beurk(titles)+"\n")
+                            log.write("\n".join([beurk(l) 
+                            for l in rows[:limit]]) +"\n")
+                            if len(rows)> limit:
+                                log.write("...%s more..."%len((rows)-limit))
                 except sqlite.Error as msg:#OperationalError
                     self.n.add_treeview(tab_tk_id, ('Error !',), [(msg,)],
                                         "Error !", first_line )
+                    if log != None: #write to logFile
+                        log.write("Error ! %s" % msg)
                     sql_error = True                    
                     break               
 
         try :
             if self.conn.conn.in_transaction : #python 3.2
-                if not sql_error: cu.execute("COMMIT;")
+                if not sql_error: 
+                    cu.execute("COMMIT;")
+                    if log != None: #write to logFile
+                        log.write("\n---------COMMIT;----------\n"%counter)
                 else : cu.execute("ROLLBACK;")
         except:
             if not sql_error:
-                try :    cu.execute("COMMIT;")
+                try :    
+                    cu.execute("COMMIT;")
+                    if log != None: #write to logFile
+                        log.write("\n---------COMMIT;----------\n"%counter)
                 except : pass    
             else :
                 try : cu.execute("ROLLBACK;")
@@ -1118,7 +1170,7 @@ CREATE VIEW v1 as select * from item inner join part as p ON ItemNo=p.ParentNo;
 \n-- to INSERT datas 
 INSERT INTO item values("T","Ford",1000);
 INSERT INTO item select "A","Merced",1250 union all select "W","Wheel",9 ;
-INSERT INTO part select ItemNo,"W","needed",Kg/250*4 from item where Kg>250;
+INSERT INTO part select ItemNo,"W","needed",Kg/250 from item where Kg>250;
 \n-- to CREATE a Python embedded function (enclose them by "py" and ";") :
 pydef py_sin(s):
     "sinus function : example loading module, handling input/output as strings"
