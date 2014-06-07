@@ -26,7 +26,7 @@ class App:
     """the GUI graphic application"""
     def __init__(self):
         """create a tkk graphic interface with a main window tk_win"""
-        self.conn = None #baresql database object
+        self.conn = None #Baresql database object
         self.database_file = ""
         self.tk_win = Tk()
         self.tk_win.title('A graphic SQLite Client in 1 Python file')
@@ -56,7 +56,7 @@ class App:
         self.db_tree.pack(fill=BOTH, expand=1)
 
         #create a  notebook 'n' inside the right 'Queries' Frame
-        self.n = notebook_for_queries(self.tk_win, f_queries, [])
+        self.n = NotebookForQueries(self.tk_win, f_queries, [])
 
     def create_menu(self):
         menubar = Menu(self.tk_win)
@@ -83,7 +83,7 @@ class App:
         self.menu_help.add_command(label='about',
             command=lambda: messagebox.showinfo(message=
             """Sqlite_py_manager : a graphic SQLite Client in 1 Python file
-            \n(version 2014-06-07b 'Yield me a token')
+            \n(version 2014-06-07c 'Yield me a token')
             \n(https://github.com/stonebig/baresql/blob/master/examples)"""))
 
     def create_toolbar(self):
@@ -127,7 +127,7 @@ class App:
                            ("all", "*.*")])
         if filename != '':
             self.database_file = filename
-            self.conn = baresql(self.database_file)
+            self.conn = Baresql(self.database_file)
             self.actualize_db()
 
     def open_db(self):
@@ -135,9 +135,9 @@ class App:
         filename = filedialog.askopenfilename(defaultextension='.db',
               filetypes=[("default", "*.db"), ("other", "*.db*"),
                          ("all", "*.*")])
-        if filename != "(none)":
+        if filename != '':
             self.database_file = filename
-            self.conn = baresql(self.database_file)
+            self.conn = Baresql(self.database_file)
             self.actualize_db()
 
     def load_script(self):
@@ -145,9 +145,9 @@ class App:
         filename = filedialog.askopenfilename(defaultextension='.sql',
               filetypes=[("default", "*.sql"), ("other", "*.txt"),
                          ("all", "*.*")])
-        if filename != "":
+        if filename != '':
             text = ((filename.replace("\\", "/")).split("/")[-1]).split(".")[0]
-            with io.open(filename, encoding=Guess_encoding(filename)[0]) as f:
+            with io.open(filename, encoding=guess_encoding(filename)[0]) as f:
                 new_tab_ref = self.n.new_query_tab(text, f.read())
 
     def savdb_script(self):
@@ -156,7 +156,7 @@ class App:
               title="save database structure in a text file",
               filetypes=[("default", "*.sql"), ("other", "*.txt"),
                          ("all", "*.*")])
-        if filename == "": return
+        if filename == '': return
         with  io.open(filename, 'w', encoding='utf-8') as f:
             for line in self.conn.iterdump():
                 f.write('%s\n' % line)
@@ -181,11 +181,12 @@ class App:
         """attach an existing database"""
         filename = filedialog.askopenfilename(defaultextension='.db',
               title="Choose a database to attach ",    
-              filetypes=[("default","*.db"),("other","*.db*"),("all","*.*")])
-        attach = ((filename.replace("\\","/")).split("/")[-1]).split(".")[0]
+              filetypes=[("default", "*.db"), ("other", "*.db*"),
+                         ("all", "*.*")])
+        attach = ((filename.replace("\\", "/")).split("/")[-1]).split(".")[0]
 
         if filename != '':
-            attach_order = "ATTACH DATABASE '%s' as '%s' "%(filename,attach);
+            attach_order = "ATTACH DATABASE '%s' as '%s' "%(filename, attach);
             self.conn.execute(attach_order)
             self.actualize_db()
 
@@ -205,18 +206,18 @@ class App:
         for node  in self.db_tree.get_children():
             self.db_tree.delete(node )
         #create initial node
-        id0 = self.db_tree.insert("",0,"Database",
-                 text = (self.database_file.replace("\\","/")).split("/")[-1] , 
-                 values = (self.database_file,"")   )
+        id0 = self.db_tree.insert("", 0, "Database",
+                 text=(self.database_file.replace("\\", "/")).split("/")[-1], 
+                 values=(self.database_file,"")   )
         #add master_table, Tables, Views, Trigger, Index
         for category in ['master_table', 'table', 'view', 'trigger', 'index',
         'pydef']:
             self.add_thingsnew( id0, category)
         #redo for attached databases
-        for att_db in self.add_thingsnew(id0,'attached_databases' ):
+        for att_db in self.add_thingsnew(id0, 'attached_databases' ):
             #create initial node for attached table
-            id0 = self.db_tree.insert("",'end', att_db + "(Attached)",
-                text = att_db + " (attached database)", values = (att_db,"") )              
+            id0 = self.db_tree.insert("", 'end', att_db + "(Attached)",
+                text=att_db+" (attached database)", values=(att_db, "") )              
             #add attached db's master_table, Tables, Views, Trigger, and Index  
             for categ in ['master_table', 'table', 'view', 'trigger', 'index']:
                 self.add_thingsnew( id0, categ, att_db )
@@ -251,10 +252,10 @@ class App:
            script = fw.get(1.0,END)[:-1]   
            filename = filedialog.asksaveasfilename(defaultextension='.db',
               title = "execute Script + output in a log file",                          
-              filetypes=[("default","*.txt"),("other","*.log"),("all","*.*")])
+              filetypes=[("default", "*.txt"), ("other", "*.log"), ("all", "*.*")])
        if filename == "": return
        with  io.open(filename,'w', encoding='utf-8') as f:
-           f.write ("/*utf-8 bug safety : 你好 мир Artisou à croute blonde*/\n")
+           f.write("/*utf-8 bug safety : 你好 мир Artisou à croute blonde*/\n")
            self.create_and_add_results(script, active_tab_id, limit=200, log=f)
            fw.focus_set() #workaround of bug http://bugs.python.org/issue17511
 
@@ -266,11 +267,11 @@ class App:
         "TkTooltipFont"]
         ww=['normal','bold']
         if self.font_size < max(sizes) :
-            self.font_size=min([i for i in sizes  if i> self.font_size])
+            self.font_size = min([i for i in sizes  if i> self.font_size])
         else:
-            self.font_size =sizes[0]; self.font_wheight  = 0
+            self.font_size = sizes[0]; self.font_wheight  = 0
  
-        ff='Helvetica' if self.font_size != min(sizes) else 'Courier';#'Times'
+        ff = 'Helvetica' if self.font_size != min(sizes) else 'Courier';#'Times'
         self.font_wheight =  0 if  self.font_size == min(sizes) else 1
         for typ in font_types:
             default_font = font.nametofont(typ)
@@ -291,7 +292,7 @@ class App:
 
         #create a new tab and run it if action suggest it
         new_tab_ref = self.n.new_query_tab(tab_text, script)
-        if action != "" : self.run_tab() #run the new_tab created
+        if action != '' : self.run_tab() #run the new_tab created
 
     def get_tk_icons(self):
         """returns a dictionary of  icon_in_tk_format, from B64 images"""
@@ -415,7 +416,7 @@ xlzceksqu6ET7JwtLRrhwNt+1HdDUQAAOw==
         """add a sub-tree to database tree pan"""
         tables = get_things(self.conn,  what, attached_db) 
         #level 1 : create  the "what" node (as not empty)
-        id = lambda t: ('"%s".'%t.replace('"', '""')) if t !="" else t 
+        def id(t): return ('"%s".'%t.replace('"', '""')) if t !="" else t 
         attached = id(attached_db) 
         if len(tables)>0:
             idt = self.db_tree.insert(root_id,"end","%s%s"%(attached, what)
@@ -451,13 +452,13 @@ xlzceksqu6ET7JwtLRrhwNt+1HdDUQAAOw==
         if isolation == "" : #Python default, inconsistent with default dump.py
             self.conn.conn.isolation_level = None #right behavior 
         cu = self.conn.conn.cursor() ; sql_error = False
-        beurk = lambda r : "("+",".join(['"'+s.replace('"','""')+'"' 
+        def beurk(r): return   "("+",".join(['"'+s.replace('"','""')+'"' 
                              if type(s)==type('e') else str(s) for s in r])+")"
-        bip = lambda c : ("\n---------N°%s----------["%counter+ 
+        def bip(c): return ("\n---------N°%s----------["%counter+ 
                datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S') +"]\n\n")
 
         for instruction in a_jouer:  
-            if log != None: #write to logFile
+            if log is not None: #write to logFile
                 counter+=1
                 log.write(bip(counter))
                 log.write(instruction)
@@ -472,53 +473,53 @@ xlzceksqu6ET7JwtLRrhwNt+1HdDUQAAOw==
                 rows = self.conn.conn_def[pydef]['pydef'].splitlines()
                 rows.append(self.conn.conn_def[pydef]['inst'])
                 self.n.add_treeview(tab_tk_id, titles, rows, "Info", pydef)
-                if log != None: #write to logFile
+                if log is not None:  # write to logFile
                     log.write("\n".join(['("%s")'%r for r in rows])+"\n")
             elif instruction != "":
                 try :
                     cur = cu.execute(instruction)
                     rows = cur.fetchall()
-                    #A query may have no result( like for an "update")
-                    if cur.description != None :
+                    # a query may have no result( like for an "update")
+                    if cur.description is not None :
                         titles = [row_info[0] for row_info in cur.description]
                         self.n.add_treeview(tab_tk_id, titles, rows,
                                         "Qry", first_line)
-                        if log != None: #write to logFile
+                        if log is not None:  # write to logFile
                             log.write(beurk(titles)+"\n")
                             log.write("\n".join([beurk(l) 
                             for l in rows[:limit]]) +"\n")
                             if len(rows)> limit:
                                 log.write("...%s more..."%len((rows)-limit))
-                except sqlite.Error as msg:#OperationalError
+                except sqlite.Error as msg:  # OperationalError
                     self.n.add_treeview(tab_tk_id, ('Error !',), [(msg,)],
                                         "Error !", first_line )
-                    if log != None: #write to logFile
+                    if log is not None:  # write to logFile
                         log.write("Error ! %s" % msg)
                     sql_error = True                    
                     break               
 
         try :
-            if self.conn.conn.in_transaction : #python 3.2
+            if self.conn.conn.in_transaction :  # python 3.2
                 if not sql_error: 
                     cu.execute("COMMIT;")
-                    if log != None: #write to logFile
+                    if log is not None:  # write to logFile
                         log.write("\n---------COMMIT;----------\n"%counter)
                 else : cu.execute("ROLLBACK;")
         except:
             if not sql_error:
                 try :    
                     cu.execute("COMMIT;")
-                    if log != None: #write to logFile
+                    if log is not None:  # write to logFile
                         log.write("\n---------COMMIT;----------\n"%counter)
                 except : pass    
             else :
                 try : cu.execute("ROLLBACK;")
                 except : pass    
             
-        self.conn.conn.isolation_level = isolation #restore standard
+        self.conn.conn.isolation_level = isolation  # restore standard
 
 
-class notebook_for_queries():
+class NotebookForQueries():
     """Create a Notebook with a list in the First frame
        and query results in following treeview frames """
 
@@ -527,23 +528,23 @@ class notebook_for_queries():
         self.root = root
         self.notebook = Notebook(root) #ttk.
         
-        self.fw_labels = {} # tab_tk_id -> Scripting frame python object
-        self.fw_result_nbs = {} # tab_tk_id -> Notebook of Results
+        self.fw_labels = {}  # tab_tk_id -> Scripting frame python object
+        self.fw_result_nbs = {}  # tab_tk_id -> Notebook of Results
         
-        # Resize rules
+        # resize rules
         root.columnconfigure(0, weight=1)
         root.rowconfigure(0, weight=1)
-        #grid widgets
+        # grid widgets
         self.notebook.grid(row=0, column=0, sticky=(N,W,S,E))
 
     def new_query_tab(self, title, query ):
         """add a Tab 'title' to the notebook, containing the Script 'query'"""
 
-        fw_welcome = ttk.Panedwindow(self.tk_win, orient=VERTICAL)   #tk_win   
+        fw_welcome = ttk.Panedwindow(self.tk_win, orient=VERTICAL)  # tk_win   
         fw_welcome.pack(fill = 'both', expand=True)
         self.notebook.add(fw_welcome, text=(title))
 
-        #new "editable" script 
+        # new "editable" script 
         f1 = ttk.Labelframe(fw_welcome, text='Script', width=200, height=100)
         fw_welcome.add(f1)
         fw_label = Text(f1 ,bd =1)
@@ -554,30 +555,30 @@ class notebook_for_queries():
         fw_label.pack(side =LEFT, expand =YES, fill =BOTH, padx =2, pady =2)
         scroll.pack(side =RIGHT, expand =NO, fill =BOTH, padx =2, pady =2)
  
-        #keep tab reference  by tk id 
+        # keep tab reference  by tk id 
         working_tab_id = "." + fw_welcome._name
         
-        #keep tab reference to script (by tk id)
+        # keep tab reference to script (by tk id)
         self.fw_labels[working_tab_id]  = fw_label        
 
-        #new "Results" Container 
+        # new "Results" Container 
         fr = ttk.Labelframe(fw_welcome, text='Results', width=200, height=100)
         fw_welcome.add(fr)
         
-        #containing a notebook
+        # containing a notebook
         fw_result_nb = Notebook(fr) 
-        fw_result_nb.pack(fill = 'both', expand=True)
-        # Resize rules
+        fw_result_nb.pack(fill='both', expand=True)
+        # resize rules
         fw_welcome.columnconfigure(0, weight=1)
-        #keep reference to result_nb objects (by tk id)
+        # keep reference to result_nb objects (by tk id)
         self.fw_result_nbs[working_tab_id]  = fw_result_nb        
         
-        #activate this tab print(self.notebook.tabs())
+        # activate this tab print(self.notebook.tabs())
         self.notebook.select(working_tab_id) 
-        #workaround to have a visible result pane on initial launch
+        # workaround to have a visible result pane on initial launch
         self.add_treeview(working_tab_id, "_", 
                                         "","click on ('->') to run Script")
-        return working_tab_id #gives back tk_id reference of the new tab
+        return working_tab_id  # gives back tk_id reference of the new tab
 
     def del_tab(self):
        """delete active notebook tab's results"""
@@ -591,24 +592,24 @@ class notebook_for_queries():
             for xx in list(myz.children.values()):
                 xx.grid_forget() ; xx.destroy()
      
-    def add_treeview(self, given_tk_id,  columns, data, title = "__", subt=""):
+    def add_treeview(self, given_tk_id,  columns, data, title="__", subt=""):
         """add a dataset result to the given tab tk_id"""
-        #Ensure we work on lists
-        tree_columns = [columns] if type(columns)==type('e') else columns
-        lines = [data] if type(data)==type('e') else data
+        # ensure we work on lists
+        tree_columns = [columns] if type(columns) == type('e') else columns
+        lines = [data] if type(data) == type('e') else data
 
-        #Get back reference to Notebooks of Results
-        #(see http://www.astro.washington.edu/users/rowen/TkinterSummary.html)
+        # get back reference to Notebooks of Results
+        # (see http://www.astro.washington.edu/users/rowen/TkinterSummary.html)
         fw_result_nb  =  self.fw_result_nbs[given_tk_id]           
 
-        #Create a Labelframe to contain new resultset and scrollbars 
+        # create a Labelframe to contain new resultset and scrollbars 
         f2 = ttk.Labelframe(fw_result_nb, 
             text=('(%s lines) %s' % (len(lines),subt)), width=200, height=100) 
-        f2.pack(fill = 'both', expand=True)
-        fw_result_nb.add(f2 , text = title)
+        f2.pack(fill='both', expand=True)
+        fw_result_nb.add(f2 , text=title)
 
-        #ttk.Style().configure('TLabelframe.label', font=("Arial", 14, "bold"))
-        #lines=queries
+        # ttk.Style().configure('TLabelframe.label', font=("Arial",14, "bold"))
+        # lines=queries
         fw_Box = Treeview(f2, columns=tree_columns, show="headings",
                           padding=(2, 2, 2,2))
         fw_vsb = Scrollbar(f2, orient="vertical", command=fw_Box.yview)
@@ -618,25 +619,25 @@ class notebook_for_queries():
         fw_vsb.grid(column=1, row=0, sticky='ns', in_=f2)
         fw_hsb.grid(column=0, row=2, sticky='ew', in_=f2)
 
-        #This new Treeview  may occupy all variable space
+        # this new Treeview  may occupy all variable space
         f2.grid_columnconfigure(0, weight=1)
         f2.grid_rowconfigure(0, weight=1) 
 
-        #feed Treeview Header
+        # feed Treeview Header
         for col in tuple(tree_columns):
             fw_Box.heading(col, text=col.title(),
                 command=lambda c=col: self.sortby(fw_Box, c, 0))
             fw_Box.column(col, width=font.Font().measure(col.title()))
 
-        #feed Treeview Lines
+        # feed Treeview Lines
         for items in lines:
             # if line is a string, redo a tuple
             item = (items,) if type(items)==type('ee') else items
 
-            #replace line_return by space (grid don't like line_returns)            
-            clean = lambda x: x.replace("\n"," ") if type(x)==type('ee') else x
+            # replace line_return by space (grid don't like line_returns)            
+            def clean(x): return x.replace("\n"," ") if type(x)==type('ee') else x
             line_cells=tuple(clean(item[c]) for c  in range(len(tree_columns)))            
-            #insert the line of data
+            # insert the line of data
             fw_Box.insert('', 'end', values=line_cells)
             # adjust columns length if necessary and possible
             for indx, val in enumerate(line_cells):
@@ -668,7 +669,7 @@ def guess_sql_creation(table_name, separ, decim, header, data_is, quoter='"'):
     try:
         dlines = list(csv.reader(data_is.replace('\n\n','\n').splitlines()
             ,delimiter = separ, quotechar = quoter))
-    except: #minimal hack for python2.7
+    except:  # minimal hack for python2.7
         dlines = list(csv.reader(data_is.replace('\n\n','\n').splitlines()
             ,delimiter = str(separ), quotechar = str(quoter) ))
     r , typ = list(dlines[0]) , list(dlines[1]) 
@@ -692,9 +693,9 @@ def import_csvtb(actions):
     csv_file = filedialog.askopenfilename(defaultextension='.db',
               title="Choose a csv fileto import ",
               filetypes=[("default","*.csv"),("other","*.txt"),("all","*.*")])
-    #Guess encoding
-    encodings = Guess_encoding(csv_file)
-    #Guess Header and delimiter
+    # guess encoding
+    encodings = guess_encoding(csv_file)
+    # guess Header and delimiter
     with io.open(csv_file, encoding = encodings[0]) as f:
         preview = f.read(9999)  
         has_header = True ; default_sep=","  ; default_quote='"'  
@@ -706,7 +707,7 @@ def import_csvtb(actions):
     except:  pass #sniffer can fail
     default_decim = [".",","] if default_sep != ";" else [",","."]
         
-    #Request form : List of Horizontal Frame names 'FramLabel' 
+    # Request form : List of Horizontal Frame names 'FramLabel' 
     #    or fields :  'Label', 'InitialValue',['r' or 'w', Width, Height]
     table_name = (csv_file.replace("\\","/")).split("/")[-1].split(".")[0]
     dlines = "\n\n".join(preview.splitlines()[:3])
@@ -729,36 +730,37 @@ def import_csvtb(actions):
                   , ("Import", import_csvtb_ok), actions )  
 
 
-def Guess_encoding(csv_file):
+def guess_encoding(csv_file):
+    """guess the encoding of the given file"""
     with io.open(csv_file, "rb") as f:
         data = f.read(5)
-    if data.startswith(b"\xEF\xBB\xBF"): # UTF-8 with a "BOM"
+    if data.startswith(b"\xEF\xBB\xBF"):  # UTF-8 with a "BOM"
         return ["utf-8-sig"]
     elif data.startswith(b"\xFF\xFE") or data.startswith(b"\xFE\xFF"): # UTF-16
         return ["utf-16"]
-    else: #in Windows, guessing utf-8 doesn't work, so we have to try
+    else:  # in Windows, guessing utf-8 doesn't work, so we have to try
         try:
-            with io.open(csv_file, encoding = "utf-8") as f:
+            with io.open(csv_file, encoding="utf-8") as f:
                 preview = f.read(222222)  
                 return ["utf-8"]
         except:
             return [locale.getdefaultlocale()[1], "utf-8"]
 
 
-def export_csv_dialog(query = "select 42", text="undefined.csv", actions=[]):
+def export_csv_dialog(query="select 42", text="undefined.csv", actions=[]):
     """export csv dialog"""
-    #Proposed encoding (we favorize utf-8 or utf-8-sig)
-    encodings = ["utf-8",locale.getdefaultlocale()[1],"utf-16","utf-8-sig"]
+    # proposed encoding (we favorize utf-8 or utf-8-sig)
+    encodings = ["utf-8", locale.getdefaultlocale()[1], "utf-16", "utf-8-sig"]
     if os.name == 'nt': 
-        encodings = ["utf-8-sig",locale.getdefaultlocale()[1],"utf-16","utf-8"]
-    #Proposed csv separator
-    default_sep=[",","|",";"]
+        encodings = ["utf-8-sig", locale.getdefaultlocale()[1], "utf-16", "utf-8"]
+    # proposed csv separator
+    default_sep=[",", "|", ";"]
 
     csv_file = filedialog.asksaveasfilename(defaultextension='.db',
               title = text,                          
-              filetypes=[("default","*.csv"),("other","*.txt"),("all","*.*")])
+              filetypes=[("default", "*.csv"), ("other", "*.txt"), ("all", "*.*")])
     if csv_file != "":
-        #Request form (http://www.python-course.eu/tkinter_entry_widgets.php)
+        # Request form (http://www.python-course.eu/tkinter_entry_widgets.php)
         fields = ['',['csv Name', csv_file,'r',100 ],''
            ,['column separator',default_sep]
            ,['Header line',True]
@@ -771,21 +773,21 @@ def export_csv_dialog(query = "select 42", text="undefined.csv", actions=[]):
 
 def create_dialog(title, fields_in, buttons, actions ):
     """create a formular with title, fields, button, data"""
-    #Drawing the request form 
+    # drawing the request form 
     top = Toplevel()
     top.title(title)
     top.columnconfigure(0, weight=1)
     top.rowconfigure(0, weight=1)
-    #drawing global frame
+    # drawing global frame
     content = ttk.Frame(top)
     content.grid(column = 0, row = 0, sticky = (N, S, E, W))
     content.columnconfigure(0, weight=1)
-    #fields = Horizontal FrameLabel, or
+    # fields = Horizontal FrameLabel, or
     #         label, default_value, 'r' or 'w' default_width,default_height
     fields = fields_in ; mf_col = -1 
-    for f in range(len(fields)): #same structure out
+    for f in range(len(fields)):  # same structure out
         field = fields[f]
-        if type(field) == type('e') or mf_col == -1:# A new horizontal frame           
+        if type(field) == type('e') or mf_col == -1:  # a new horizontal frame           
             mf_col += 1 ; ta_col = -1
             if type(field) == type('e') and field == '' :
                 mf_frame = ttk.Frame(content, borderwidth = 1) 
@@ -794,21 +796,21 @@ def create_dialog(title, fields_in, buttons, actions ):
             mf_frame.grid(column = 0, row = mf_col, sticky ='nsew')
             Grid.rowconfigure(mf_frame, 0, weight=1)
             content.rowconfigure(mf_col, weight=1)
-        if type(field) != type('e'): #A New Vertical Frame
+        if type(field) != type('e'):  # a new vertical frame
             ta_col += 1
             Grid.columnconfigure(mf_frame, ta_col,weight=1);
             packing_frame = ttk.Frame(mf_frame, borderwidth = 1)
             packing_frame.grid(column = ta_col, row = 0 , sticky ='nsew')
             Grid.columnconfigure(packing_frame, 0, weight=1)
-            #prepare width and height and writable status
+            # prepare width and height and writable status
             width = field[3] if len(field)>3 else 30 
             height = field[4] if len(field)>4 else 30 
             status = "normal"
             if len(field)>=3 and field[2] == "r":
                    status = "disabled"
-            #switch between object types
+            # switch between object types
             if len(field)>4:
-                #datas
+                # datas
                 d_frame = ttk.LabelFrame(packing_frame, borderwidth = 5
                        , width=width , height=height   , text= field[0]  )
                 d_frame.grid(column= 0, row= 0, sticky ='nsew', pady=1, padx=1)
@@ -822,18 +824,18 @@ def create_dialog(title, fields_in, buttons, actions ):
                 fw_label.configure( state = status)
                 Grid.rowconfigure(d_frame, 0, weight=1)
                 Grid.columnconfigure(d_frame, 0, weight=1)
-                #Data Text Extractor in the fields list ()
-                #see stackoverflow.com/questions/17677649 (loop and lambda)
+                # Data Text Extractor in the fields list ()
+                # see stackoverflow.com/questions/17677649 (loop and lambda)
                 fields[f][1] = lambda x=fw_label : x.get('1.0','end')
             elif field[1]==True or field[1]==False:
-                #Boolean Field
+                # boolean Field
                 name_var = BooleanVar()
                 name = ttk.Checkbutton(packing_frame, text=field[0], 
                            variable = name_var, onvalue=True, state = status)
                 name_var.set(field[1])  
                 name.grid(column = 0, row = 0, sticky ='nsew', pady=5, padx=5)
                 fields[f][1] =  name_var.get 
-            else : #Text or Combo
+            else :  # Text or Combo
                 namelbl = ttk.Label(packing_frame,   text=field[0] )
                 namelbl.grid(column=0, row=0, sticky='nsw', pady=5, padx=5)
                 name_var = StringVar()
@@ -848,7 +850,7 @@ def create_dialog(title, fields_in, buttons, actions ):
                     name.current(0)
                 name.grid(column=1, row=0,   sticky='nsw', pady=0, padx=10)
                 fields[f][1] = name_var.get 
-    # Adding button below the same way
+    # adding button below the same way
     mf_col += 1
     packing_frame = ttk.LabelFrame(content, borderwidth = 5  )
     packing_frame.grid(column = 0, row = mf_col, sticky ='nsew')
@@ -866,18 +868,18 @@ def create_dialog(title, fields_in, buttons, actions ):
 def import_csvtb_ok(thetop, entries, actions):
     """read input values from tk formular"""
     conn  , actualize_db = actions
-    #build dico of result
+    # build dico of result
     d={f[0]:f[1]()  for f in entries if type(f)!= type('e')}
-    #affect to variables
+    # affect to variables
     csv_file = d['csv Name'].strip()
     table_name = d['table Name'].strip()
     separ = d['column separator'] ; decim = d['Decimal separator'] 
     quotechar = d['string delimiter']
-    #Action
+    # action
     if   csv_file != "(none)" and len(csv_file)*len(table_name)*len(separ)>1:
         thetop.destroy()
         curs = conn.conn.cursor()
-        #Do initialization job
+        # do initialization job
         sql, typ, head = guess_sql_creation(table_name, separ, decim,
                               d['Header line'], d["first 3 lines"], quotechar)
         if d['Create table']:
@@ -894,13 +896,13 @@ def import_csvtb_ok(thetop, entries, actions):
         try:
             reader = csv.reader(open(csv_file, 'r', encoding = d['Encoding']),
                            delimiter = separ, quotechar = quotechar)
-        except: #minimal hack for 2.7
+        except:  # minimal hack for 2.7
             reader = csv.reader(open(csv_file, 'r' ),
                            delimiter = str(separ), quotechar=str(quotechar) )
-        #read first_line if needed to skip headers 
+        # read first_line if needed to skip headers 
         if d['Header line']:
             row = next(reader)
-        if decim != "." : # one by one needed
+        if decim != "." :  # one by one needed
             for row in reader:
                if type(row) !=type ("e"):
                    for i in range(len(row)): 
@@ -915,39 +917,39 @@ def import_csvtb_ok(thetop, entries, actions):
 def export_csv_ok(thetop, entries, actions):
     """export a csv table (action)"""
     conn = actions[0]
-    #build dico of result
+    # build dico of result
     d={f[0]:f[1]()  for f in entries if type(f)!= type('e')}
 
     csv_file=d['csv Name'].strip() 
     cursor = conn.conn.cursor()
     cursor.execute(d["Data to export (MUST be 1 Request)"])
     thetop.destroy()
-    if sys.version_info[0] !=2: #python3
+    if sys.version_info[0] !=2:  # python3
         fout = io.open(csv_file, 'w', newline = '', encoding= d['Encoding'])
         writer = csv.writer(fout, delimiter = d['column separator'],
                             quotechar='"', quoting=csv.QUOTE_MINIMAL)
-    else: #python2.7 (minimal)   
+    else:  # python2.7 (minimal)   
         fout = io.open(csv_file, 'wb')
         writer = csv.writer(fout, delimiter = str(d['column separator']),
                         quotechar=str('"'), quoting=csv.QUOTE_MINIMAL)
     if d['Header line']:
-            writer.writerow([i[0] for i in cursor.description]) # heading row
+            writer.writerow([i[0] for i in cursor.description])  # heading row
     writer.writerows(cursor.fetchall())
     fout.close
     
 
 def export_csvtb( actions):
     """get selected table definition and launch cvs export dialog"""
-    #determine selected table   
+    # determine selected table   
     db_tree = actions[1]
-    selitem = db_tree.focus() #get tree item having the focus  
+    selitem = db_tree.focus()  # get tree item having the focus  
     if selitem !='':
         seltag = db_tree.item(selitem,"tag")[0] 
-        if seltag == "run_up" : # if 'run-up', do as if dbl-click 1 level up 
+        if seltag == "run_up" :  # if 'run-up', do as if dbl-click 1 level up 
             selitem =  db_tree.parent(selitem)
-        #get final information 
+        # get final information 
         definition , query = db_tree.item(selitem, "values")
-        if query != "": #run the export_csv dialog
+        if query != "":  # run the export_csv dialog
             title = ('Export Table "%s" to ?' %db_tree.item(selitem, "text"))
             export_csv_dialog(query, title, actions )   
 
@@ -956,7 +958,7 @@ def export_csvqr( actions):
     """get tab selected definition and launch cvs export dialog"""
     n = actions[1]
     active_tab_id = n.notebook.select()
-    if active_tab_id !='': #get current selection (or all)
+    if active_tab_id !='':  # get current selection (or all)
         fw =n.fw_labels[active_tab_id]
         try : query = fw.get('sel.first', 'sel.last')
         except: query = fw.get(1.0,END)[:-1]   
@@ -965,7 +967,7 @@ def export_csvqr( actions):
     
 def get_things( conn,   what , attached_db = "", tbl =""):
     """'what' objects : [objectCode, objectName, Definition, [Lvl - 1]]"""
-    #dico = what : what qry, result id, result text, result crea, 'what' below 
+    # dico = what : what qry, result id, result text, result crea, 'what' below 
     #    or what : other 'what' specification to use in thi dictionnary
     dico={'index': 'trigger',
           'trigger': ("""select '{0:s}' || name, name, sql FROM 
@@ -983,19 +985,19 @@ def get_things( conn,   what , attached_db = "", tbl =""):
                      '{1:s}','{1:s}', "ATTACH DATABASE '{2:s}' as '{1:s}'",''),
           'pydef': ("#N/A", '{0:s}','{0:s}','{1:s}', '')
           }
-    id = lambda t: ('"%s".'%t.replace('"', '""')) if t !="" else t 
+    def id(t): return ('"%s".'%t.replace('"', '""')) if t !="" else t 
     attached = id(attached_db) 
     order = dico[what] if type(dico[what]) != type('e') else dico[dico[what]] 
     Tables = []
-    if what == "pydef": #pydef request is not sql
+    if what == "pydef":  # pydef request is not sql
         resu = [[k , v['pydef']] for k, v in conn.conn_def.items()]
 
     else:
-        #others are sql request
+        # others are sql request
         resu = conn.execute(order[0].format(attached,what,tbl)).fetchall()
-        #result must be transformed in a list, and attached db 'main' removed
+        # result must be transformed in a list, and attached db 'main' removed
         resu = list(resu) if what != 'attached_databases' else list(resu)[1:]
-    #generate tree list for this 'what' category level :
+    # generate tree list for this 'what' category level :
     #     [objectCode, objectName, Definition, [Level below] or '']
     for rec in resu:
         result = [order[i].format(*rec) for i in range(1,5)]
@@ -1007,13 +1009,13 @@ def get_things( conn,   what , attached_db = "", tbl =""):
     return Tables    
 
 
-class baresql():
-    """a tiny sql wrapper"""
+class Baresql():
+    """a small wrapper around sqlite3 module"""
     def __init__(self, connection="", keep_log = False, cte_inline = True):
         self.dbname = connection.replace(":///","://").replace("sqlite://","")
         self.conn = sqlite.connect(self.dbname,
                    detect_types = sqlite.PARSE_DECLTYPES)
-        #pydef and logging infrastructure
+        # pydef and logging infrastructure
         self.conn_def = {}
         self.do_log = keep_log
         self.log = []
@@ -1024,21 +1026,21 @@ class baresql():
             
     def iterdump(self):
         """slightly improved database dump over default sqlite3 module dump"""
-        #Force detection of utf-8
+        # force detection of utf-8
         yield("/*utf-8 bug safety : 你好 мир Artisou à croute blonde*/\n")
-        #Add the Python functions pydef 
+        # add the Python functions pydef 
         for k in self.conn_def.values():   
             yield(k['pydef'] + ";\n" ) 
-        #Disable Foreign Constraints at Load 
+        # disable Foreign Constraints at Load 
         yield("PRAGMA foreign_keys = OFF; /*if SQlite */;")        
         yield("\n/* SET foreign_key_checks = 0;/*if Mysql*/;")
-        #How-to parametrize Mysql to SQL92 standard 
+        # how to parametrize Mysql to SQL92 standard 
         yield("/* SET sql_mode = 'PIPES_AS_CONCAT';/*if Mysql*/;")
         yield("/* SET SQL_MODE = ANSI_QUOTES; /*if Mysql*/;\n")
-        #Now the standard dump (notice it uses BEGIN TRANSACTION) 
+        # now the standard dump (notice it uses BEGIN TRANSACTION) 
         for line in self.conn.iterdump():
                yield( line)
-        #Re-instantiate Foreign_keys = True
+        # re-instantiate Foreign_keys = True
         for row in self.conn.execute("PRAGMA foreign_keys"):
             flag = 'ON' if row[0] == 1 else 'OFF'
             yield("PRAGMA foreign_keys = %s;/*if SQlite*/;"%flag)        
@@ -1051,11 +1053,11 @@ class baresql():
         return self.conn.execute(sql )        
 
     def createpydef(self, sql):
-        """generates and registr a pydef instruction"""
+        """generates and register a pydef instruction"""
         instruction = sql.strip('; \t\n\r')
-        #create Python function in Python
+        # create Python function in Python
         exec(instruction[2:]  , globals() , locals())        
-        #add Python function in SQLite
+        # add Python function in SQLite
         firstline=(instruction[5:].splitlines()[0]).lstrip()
         firstline = firstline.replace(" ","") + "(" 
         instr_name=firstline.split("(",1)[0].strip()
@@ -1063,7 +1065,7 @@ class baresql():
         instr_add = "self.conn.create_function('%s', %s, %s)" %(
            instr_name,instr_parms, instr_name)
         exec(instr_add , globals() , locals())
-        #housekeeping definition of pydef in a dictionnary 
+        # housekeeping definition of pydef in a dictionnary 
         the_help= dict(globals(),**locals())[instr_name].__doc__
         self.conn_def[instr_name]={'parameters':instr_parms, 'inst':instr_add,
                                   'help':the_help, 'pydef':instruction}
@@ -1079,27 +1081,27 @@ class baresql():
          '"':'TK_STRING', "`":'TK_STRING'}
         while length > start:
             if sql[i] == "-" and i < length and sql[i:i+2] == "--" :
-                #this Token is an end-of-line comment : --blabla
+                # this Token is an end-of-line comment : --blabla
                 token='TK_COM'
                 i = sql.find("\n", start)  
                 if i <= 0: i = length  
             elif sql[i] == "/" and i < length and sql[i:i+2] == "/*":
-                #this Token is a comment block : /* and bla bla \n bla */
+                # this Token is a comment block : /* and bla bla \n bla */
                 token='TK_COM'
                 i = sql.find("*/",start)+2  
                 if i <= 1:  i = length
             elif sql[i] not in dico : 
-                #this token is a distinct word (tagged as 'TK_OTHER') 
+                # this token is a distinct word (tagged as 'TK_OTHER') 
                 while i < length and sql[i] not in dico: i += 1
             else:
-                #default token analyze case
+                # default token analyze case
                 token = dico[sql[i]]
                 if token == 'TK_SP':  
-                    #Find the end of the 'Spaces' Token just detected  
+                    # find the end of the 'Spaces' Token just detected  
                     while (i < length and sql[i] in dico and 
                       dico[sql[i]] == 'TK_SP'):  i += 1
                 elif token == 'TK_STRING':  
-                    #Find the end of the 'String' Token just detected  
+                    # find the end of the 'String' Token just detected  
                     delimiter = sql[i]
                     if delimiter != "'": token = 'TK_ID' #usefull nuance ?
                     while (i < length  ):
@@ -1108,10 +1110,10 @@ class baresql():
                             i = length
                             token = 'TK_ERROR'
                         elif i < length -1 and sql[i+1] == delimiter :
-                            i += 1   # double '' case, so ignore and continue
+                            i += 1  # double '' case, so ignore and continue
                         else: 
                             i += 1
-                            break #normal End of a  String 
+                            break  # normal End of a  String 
                 else: 
                     if i < length : i += 1
             yield sql[start:i], token
@@ -1122,9 +1124,9 @@ class baresql():
         trigger_mode = False
         sqls = [] ; mysql=[""]
         for tokv, token in self.get_tokens(sql):
-            #clear comments option
+            # clear comments option
             if token != 'TK_COM' or not remove_comments: mysql.append(tokv)
-            #Special case for Trigger : semicolumn don't count
+            # special case for Trigger : semicolumn don't count
             if token == 'TK_OTHER':
                 tok = tokv.upper();
                 if tok == "TRIGGER": 
@@ -1143,8 +1145,8 @@ class baresql():
 
 if __name__ == '__main__':
     # create a tkk graphic interface with a main window tk_win
-    app=App()
-    #Start with a memory Database and a welcome
+    app = App()
+    # start with a memory Database and a welcome
     app.new_db(":memory:")
     welcome_text = """-- SQLite Memo (Demo = click on green "->" and "@" icons)
 \n-- to CREATE a table 'items' and a table 'parts' :
