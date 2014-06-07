@@ -77,7 +77,7 @@ class App:
         self.menu_help.add_command(label='about',
             command = lambda : messagebox.showinfo( message=
             """Sqlite_py_manager : a graphic SQLite Client in 1 Python file
-            \n(version 2014-06-04a 'Log me out !')
+            \n(version 2014-06-07a 'Yield me a token')
             \n(https://github.com/stonebig/baresql/blob/master/examples)""")) 
 
 
@@ -1077,15 +1077,15 @@ class baresql():
         return instr_name
 
                 
-    def get_token(self, sql, start = 0):
-        "for given sql start position, give token type and next token start"
+    def get_tokens(self, sql, start = 0):
+        "from given sql start position, yield tokens (value + token type)"
         length = len(sql) ; 
         i = start ; token = 'TK_OTHER'
         dico = {' ':'TK_SP', '\t':'TK_SP', '\n':'TK_SP', '\f':'TK_SP',
          '\r':'TK_SP', '(':'TK_LP', ')':'TK_RP', ';':'TK_SEMI', ',':'TK_COMMA',
          '/':'TK_OTHER', "'":'TK_STRING',"-":'TK_OTHER', 
          '"':'TK_STRING', "`":'TK_STRING'}
-        if length > start:
+        while length > start:
             if sql[i] == "-" and i < length and sql[i:i+2] == "--" :
                 #this Token is an end-of-line comment : --blabla
                 token='TK_COM'
@@ -1122,35 +1122,31 @@ class baresql():
                             break #normal End of a  String 
                 else: 
                     if i < length : i += 1
-        return i, token
+            yield sql[start:i], token
+            start = i
 
 
-    def get_sqlsplit(self, sql, remove_comments=False):
+    def get_sqlsplit (self, sql, remove_comments=False):
         """split an sql file in list of separated sql orders"""
-        beg = end = 0; length = len(sql) ; trigger_mode = False
-        sqls = []
-        while end < length-1:
+        trigger_mode = False
+        sqls = [] ; mysql=[""]
+        for tokv, token in self.get_tokens(sql):
+            #clear comments option
+            if token != 'TK_COM' or not remove_comments: mysql.append(tokv)
             #Special case for Trigger : semicolumn don't count
-            tk_end , token = self.get_token(sql,end)
             if token == 'TK_OTHER':
-                tok = sql[end:tk_end].upper();
+                tok = tokv.upper();
                 if tok == "TRIGGER": 
                     trigger_mode = True; translvl = 0
                 elif trigger_mode and tok in('BEGIN','CASE'): translvl += 1
                 elif trigger_mode and tok == 'END' :  
                     translvl -= 1
                     if translvl <=0 : trigger_mode = False
-            elif (token == 'TK_SEMI' and not trigger_mode) or tk_end == length: 
+            elif (token == 'TK_SEMI' and not trigger_mode) : 
                 # end of a single sql
-                sqls.append(sql[beg:tk_end])
-                beg = tk_end
-            elif token == 'TK_COM' and remove_comments: # clear comments option
-                sql = sql[:end]+' '+ sql[tk_end:]
-                length = len(sql)
-                tk_end = end + 1
-            end = tk_end
-        if beg < length :
-               sqls.append(sql[beg:])
+                sqls.append("".join(mysql)) 
+                mysql = []
+        if mysql != []  : sqls.append("".join(mysql)) 
         return sqls
         
 
