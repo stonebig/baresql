@@ -2,31 +2,37 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function, unicode_literals, division #Python2.7
 
-import sqlite3 as sqlite 
-import sys, os, locale, csv , datetime, io , codecs
+import sqlite3 as sqlite
+import sys
+import os
+import locale
+import csv
+import datetime
+import io
+import codecs
 
 try: #We are Python 3.3+
-    from tkinter import * 
+    from tkinter import *
     from tkinter import font, ttk, filedialog, messagebox
     from tkinter.ttk import *
 except: #or we are Python2.7
-    from Tkinter import *  
+    from Tkinter import *
     import Tkinter as tkinter, tkFont as font
-    import tkFileDialog as filedialog, tkMessageBox as messagebox  
+    import tkFileDialog as filedialog, tkMessageBox as messagebox
     from ttk import *
     import ttk as ttk
 
-class App: 
-    "the GUI graphic application"
+class App:
+    """the GUI graphic application"""
     def __init__(self):
-        "create a tkk graphic interface with a main window tk_win"
+        """create a tkk graphic interface with a main window tk_win"""
         self.conn = None #baresql database object
         self.database_file = ""
         self.tk_win = Tk()
         self.tk_win.title('A graphic SQLite Client in 1 Python file')
-        self.tk_win.option_add('*tearOff', FALSE) # tk documentation recommands 
-        self.tk_win.minsize(600,200)              # minimal size
-    
+        self.tk_win.option_add('*tearOff', FALSE) # tk documentation recommands
+        self.tk_win.minsize(600, 200)              # minimal size
+
         self.font_size = 10
         self.font_wheight = 0
         #self.chg_size()
@@ -35,27 +41,27 @@ class App:
         self.create_toolbar()
 
         #With a Panedwindow of two frames: 'Database' and 'Queries'
-        p  = ttk.Panedwindow(self.tk_win, orient=HORIZONTAL)
+        p = ttk.Panedwindow(self.tk_win, orient=HORIZONTAL)
         p.pack(fill=BOTH, expand=1)
 
         f_database = ttk.Labelframe(p, text='Databases', width=200, height=100)
         p.add(f_database)
         f_queries = ttk.Labelframe(p, text='Queries', width=200, height=100)
         p.add(f_queries)
-    
+
         #build tree view 't' inside the left 'Database' Frame
-        self.db_tree = ttk.Treeview(f_database , displaycolumns = [], 
-                           columns = ("detail","action"))
+        self.db_tree = ttk.Treeview(f_database, displaycolumns=[],
+                           columns=("detail", "action"))
         self.db_tree.tag_configure("run")
-        self.db_tree.pack(fill = BOTH , expand = 1)
+        self.db_tree.pack(fill=BOTH, expand=1)
 
         #create a  notebook 'n' inside the right 'Queries' Frame
-        self.n = notebook_for_queries(self.tk_win, f_queries , [])
+        self.n = notebook_for_queries(self.tk_win, f_queries, [])
 
     def create_menu(self):
         menubar = Menu(self.tk_win)
         self.tk_win['menu'] = menubar
-    
+
         #feeding the top level menu
         self.menu = Menu(menubar)
         menubar.add_cascade(menu=self.menu, label='Database')
@@ -63,136 +69,134 @@ class App:
         menubar.add_cascade(menu=self.menu_help, label='?')
 
         #feeding database sub-menu
-        self.menu.add_command(label = 'New Database', command = self.new_db)
-        self.menu.add_command(label ='New In-Memory Database', command = 
-                          lambda : self.new_db(":memory:"))
-        self.menu.add_command(label = 'Connect to Database ...', 
-                              command = self.open_db)
-        self.menu.add_command(label = 'Close Database', command= self.close_db)   
+        self.menu.add_command(label='New Database', command=self.new_db)
+        self.menu.add_command(label='New In-Memory Database', command=
+                          lambda: self.new_db(":memory:"))
+        self.menu.add_command(label='Connect to Database ...',
+                              command=self.open_db)
+        self.menu.add_command(label='Close Database', command=self.close_db)
         self.menu.add_separator()
-        self.menu.add_command(label= 'Attach Database',command= self.attach_db)   
+        self.menu.add_command(label='Attach Database', command=self.attach_db)
         self.menu.add_separator()
-        self.menu.add_command(label = 'Quit', command = self.quit_db)   
-                          
-        self.menu_help.add_command(label='about',
-            command = lambda : messagebox.showinfo( message=
-            """Sqlite_py_manager : a graphic SQLite Client in 1 Python file
-            \n(version 2014-06-07a 'Yield me a token')
-            \n(https://github.com/stonebig/baresql/blob/master/examples)""")) 
+        self.menu.add_command(label='Quit', command=self.quit_db)
 
+        self.menu_help.add_command(label='about',
+            command=lambda: messagebox.showinfo(message=
+            """Sqlite_py_manager : a graphic SQLite Client in 1 Python file
+            \n(version 2014-06-07b 'Yield me a token')
+            \n(https://github.com/stonebig/baresql/blob/master/examples)"""))
 
     def create_toolbar(self):
-        "Toolbar of the application"
+        """Toolbar of the application"""
         self.toolbar = Frame(self.tk_win, relief=RAISED)
         self.toolbar.pack(side=TOP, fill=X)
         self.tk_icon = self.get_tk_icons()
-    
+
         #list of image, action, tootip :
-        to_show=[('refresh_img', self.actualize_db, "Actualize Databases")
-           ,('run_img', self.run_tab, "Run Script Selection")
-           ,('deltab_img', lambda x=self: x.n.del_tab(), "Delete current tab")
-           ,('deltabresult_img',  lambda x=self:
+        to_show = [('refresh_img', self.actualize_db, "Actualize Databases")
+           , ('run_img', self.run_tab, "Run Script Selection")
+           , ('deltab_img', lambda x=self: x.n.del_tab(), "Delete current tab")
+           , ('deltabresult_img', lambda x=self:
                x.n.remove_treeviews(x.n.notebook.select()), "Clear tab Result")
-           ,('newtab_img', lambda x=self:
-               x.n.new_query_tab("___",""), "Create a New Tab")
-           ,('csvin_img', lambda x=self: import_csvtb([x.conn,x.actualize_db]),
-                     "Import a CSV file into a Table")
-           ,('csvex_img', lambda x=self: export_csvtb([x.conn, x.db_tree]),
+           , ('newtab_img', lambda x=self:
+               x.n.new_query_tab("___", ""), "Create a New Tab")
+           , ('csvin_img', lambda x=self: import_csvtb([x.conn,
+                            x.actualize_db]), "Import a CSV file into a Table")
+           , ('csvex_img', lambda x=self: export_csvtb([x.conn, x.db_tree]),
                      "Export Selected Table to a CSV file")
-           ,('dbdef_img', self.savdb_script,"Save Database as a SQL Script")
-           ,('qryex_img', lambda x=self: export_csvqr([x.conn, x.n]),
-                     "Export Selected Query to a CSV file") 
-           ,('exe_img', self.exsav_script,
-                     "Run Script+Output to a file (First 200 rec. per Qry)") 
-           ,('sqlin_img', self.load_script , "Load a SQL Script File") 
-           ,('sqlsav_img', self.sav_script,"Save a SQL Script in a File") 
-           ,('chgsz_img', self.chg_size,"Modify Font Size")]
-    
+           , ('dbdef_img', self.savdb_script, "Save Database as a SQL Script")
+           , ('qryex_img', lambda x=self: export_csvqr([x.conn, x.n]),
+                     "Export Selected Query to a CSV file")
+           , ('exe_img', self.exsav_script,
+                     "Run Script+Output to a file (First 200 rec. per Qry)")
+           , ('sqlin_img', self.load_script, "Load a SQL Script File")
+           , ('sqlsav_img', self.sav_script, "Save a SQL Script in a File")
+           , ('chgsz_img', self.chg_size, "Modify Font Size")]
+
         for img, action, tip in to_show:
-            b = Button(self.toolbar, image= self.tk_icon[img], command= action)
+            b = Button(self.toolbar, image=self.tk_icon[img], command=action)
             b.pack(side=LEFT, padx=2, pady=2)
             self.createToolTip(b, tip)
 
-    
-    def new_db(self, filename = ''):
+    def new_db(self, filename=''):
         """create a new database"""
         if filename == '':
             filename = filedialog.asksaveasfilename(defaultextension='.db',
-                title="Define a new database name and location",                          
-                filetypes=[("default","*.db"),("other","*.db*"),("all","*.*")])
+                title="Define a new database name and location",
+                filetypes=[("default", "*.db"), ("other", "*.db*"),
+                           ("all", "*.*")])
         if filename != '':
-            self.database_file =  filename 
+            self.database_file = filename
             self.conn = baresql(self.database_file)
             self.actualize_db()
 
-
     def open_db(self):
-       """open an existing database"""
-       filename = filedialog.askopenfilename(defaultextension='.db',
-              filetypes=[("default","*.db"),("other","*.db*"),("all","*.*")])
-       if filename != "(none)":
-           self.database_file =  filename 
-           self.conn = baresql(self.database_file)
-           self.actualize_db()
-       
-       
+        """open an existing database"""
+        filename = filedialog.askopenfilename(defaultextension='.db',
+              filetypes=[("default", "*.db"), ("other", "*.db*"),
+                         ("all", "*.*")])
+        if filename != "(none)":
+            self.database_file = filename
+            self.conn = baresql(self.database_file)
+            self.actualize_db()
+
     def load_script(self):
-       """load a script file"""
-       filename = filedialog.askopenfilename(defaultextension='.sql',
-              filetypes=[("default","*.sql"),("other","*.txt"),("all","*.*")])
-       if filename != "":
-           text = ((filename.replace("\\","/")).split("/")[-1]).split(".")[0]
-           with io.open(filename, encoding = Guess_encoding(filename)[0]) as f:
-               new_tab_ref = self.n.new_query_tab(text, f.read())
+        """load a script file"""
+        filename = filedialog.askopenfilename(defaultextension='.sql',
+              filetypes=[("default", "*.sql"), ("other", "*.txt"),
+                         ("all", "*.*")])
+        if filename != "":
+            text = ((filename.replace("\\", "/")).split("/")[-1]).split(".")[0]
+            with io.open(filename, encoding=Guess_encoding(filename)[0]) as f:
+                new_tab_ref = self.n.new_query_tab(text, f.read())
 
     def savdb_script(self):
-       """save database as a script file"""
-       filename = filedialog.asksaveasfilename(defaultextension='.db',
-              title = "save database structure in a text file",                          
-              filetypes=[("default","*.sql"),("other","*.txt"),("all","*.*")])
-       if filename == "": return
-       with  io.open(filename,   'w', encoding='utf-8') as f:
-           for line in self.conn.iterdump():
-               f.write('%s\n' % line)
- 
+        """save database as a script file"""
+        filename = filedialog.asksaveasfilename(defaultextension='.db',
+              title="save database structure in a text file",
+              filetypes=[("default", "*.sql"), ("other", "*.txt"),
+                         ("all", "*.*")])
+        if filename == "": return
+        with  io.open(filename, 'w', encoding='utf-8') as f:
+            for line in self.conn.iterdump():
+                f.write('%s\n' % line)
+
     def sav_script(self):
-       """save a script in a file"""
-       active_tab_id = self.n.notebook.select()
-       if active_tab_id != '':
-           #get current selection (or all)
-           fw =self.n.fw_labels[active_tab_id]
-           script = fw.get(1.0,END)[:-1]   
-           filename = filedialog.asksaveasfilename(defaultextension='.db',
-              title = "save script in a sql file",                          
-              filetypes=[("default","*.sql"),("other","*.txt"),("all","*.*")])
-       if filename == "": return
-       with  io.open(filename,'w', encoding='utf-8') as f:
-           f.write ("/*utf-8 bug safety : 你好 мир Artisou à croute blonde*/\n")
-           f.write(script)        
- 
+        """save a script in a file"""
+        active_tab_id = self.n.notebook.select()
+        if active_tab_id != '':
+            #get current selection (or all)
+            fw = self.n.fw_labels[active_tab_id]
+            script = fw.get(1.0, END)[:-1]
+            filename = filedialog.asksaveasfilename(defaultextension='.db',
+              title="save script in a sql file",
+              filetypes=[("default", "*.sql"), ("other", "*.txt"),
+                         ("all", "*.*")])
+        if filename == "": return
+        with  io.open(filename, 'w', encoding='utf-8') as f:
+            f.write ("/*utf-8 bug safety : 你好 мир Artisou à croute blonde*/\n")
+            f.write(script)
  
     def attach_db(self):
-       """attach an existing database"""
-       filename = filedialog.askopenfilename(defaultextension='.db',
+        """attach an existing database"""
+        filename = filedialog.askopenfilename(defaultextension='.db',
               title="Choose a database to attach ",    
               filetypes=[("default","*.db"),("other","*.db*"),("all","*.*")])
-       attach = ((filename.replace("\\","/")).split("/")[-1]).split(".")[0]
+        attach = ((filename.replace("\\","/")).split("/")[-1]).split(".")[0]
 
-       if filename != '':
-           attach_order = "ATTACH DATABASE '%s' as '%s' "%(filename,attach);
-           self.conn.execute(attach_order)
-           self.actualize_db()
-
+        if filename != '':
+            attach_order = "ATTACH DATABASE '%s' as '%s' "%(filename,attach);
+            self.conn.execute(attach_order)
+            self.actualize_db()
 
     def close_db(self):
-       """close database"""
-       try    : self.db_tree.delete("Database")
-       except : pass
-       self.conn.close
+        """close database"""
+        try    : self.db_tree.delete("Database")
+        except : pass
+        self.conn.close
    
-
     def actualize_db(self):
-        "re-build database view"
+        """re-build database view"""
         #bind double-click for easy user interaction
         self.db_tree.tag_bind('run', '<Double-1>', self.t_doubleClicked)
         self.db_tree.tag_bind('run_up', '<Double-1>', self.t_doubleClicked)
@@ -217,13 +221,11 @@ class App:
             for categ in ['master_table', 'table', 'view', 'trigger', 'index']:
                 self.add_thingsnew( id0, categ, att_db )
 
-
     def quit_db(self):
        """quit application button"""
        if messagebox.askyesno(message='Are you sure you want to quit ?',
-	                      icon='question', title='Quiting'):
+                          icon='question', title='Quiting'):
            self.tk_win.destroy()
-
 
     def run_tab(self):
        """clear previous results and run current script of a tab"""
@@ -239,7 +241,6 @@ class App:
                script = fw.get(1.0,END)[:-1]   
            self.create_and_add_results(script, active_tab_id)
            fw.focus_set() #workaround of bug http://bugs.python.org/issue17511
-
 
     def exsav_script(self):
        """execute script + commands to a script file"""
@@ -275,10 +276,9 @@ class App:
             default_font = font.nametofont(typ)
             default_font.configure(size=self.font_size,
                                    weight=ww[self.font_wheight], family=ff)
-
-              
+            
     def t_doubleClicked(self, event):
-        "action on dbl_click on the Database structure" 
+        """action on dbl_click on the Database structure""" 
         #determine item to consider   
         selitem = self.db_tree.focus() #the item having the focus  
         seltag = self.db_tree.item(selitem,"tag")[0]  
@@ -293,9 +293,8 @@ class App:
         new_tab_ref = self.n.new_query_tab(tab_text, script)
         if action != "" : self.run_tab() #run the new_tab created
 
-
     def get_tk_icons(self):
-        "retuns a dictionary of {iconname : icon_in_tk_format} from B64 images"
+        """returns a dictionary of  icon_in_tk_format, from B64 images"""
         #to create this base 64 from a toto.gif image of 24x24 size do :
         #    import base64
         #    b64 = base64.encodestring(open(r"toto.gif","rb").read())
@@ -378,9 +377,8 @@ xlzceksqu6ET7JwtLRrhwNt+1HdDUQAAOw==
             icons[key] = PhotoImage(data = value)
         return  icons
  
-   
     def createToolTip(self, widget, text ):
-        "Creates a tooptip box for a widget."
+        """Creates a tooptip box for a widget."""
         #www.daniweb.com/software-development/python/code/234888/tooltip-box   
         def enter( event ):
             global tipwindow
@@ -413,9 +411,8 @@ xlzceksqu6ET7JwtLRrhwNt+1HdDUQAAOw==
         widget.bind( "<Enter>", enter )
         widget.bind( "<Leave>", close )
 
-
     def add_thingsnew(self, root_id , what , attached_db = ""): 
-        "add a sub-tree to database tree pan"
+        """add a sub-tree to database tree pan"""
         tables = get_things(self.conn,  what, attached_db) 
         #level 1 : create  the "what" node (as not empty)
         id = lambda t: ('"%s".'%t.replace('"', '""')) if t !="" else t 
@@ -433,17 +430,16 @@ xlzceksqu6ET7JwtLRrhwNt+1HdDUQAAOw==
                     sql3 = 'select "'+'" , "'.join(colnames)+'"  from ' + (
                             '%s"%s"'% (attached,tab[1])  )
                 idc = self.db_tree.insert(idt,"end",  "%s%s" % (attached,tab[0]) 
-                     ,text=tab[1],tags=('run',) , values=(definition,sql3))                    
+                     , text=tab[1], tags=('run',) , values=(definition,sql3))                    
                 if sql3 != "":
                     self.db_tree.insert(idc,"end",("%s%s.%s"% (attached,tab[1], -1)),
-                    text = ['(Definition)'],tags=('run',), values=(definition,""))
+                    text=['(Definition)'], tags=('run',), values=(definition,""))
                     #level 3 : Insert a line per column of the Table/View
                     for c in range(len(columns)):
                         self.db_tree.insert(idc,"end",
                            ("%s%s.%s" % (attached, tab[1], c)),
-                           text = columns[c], tags = ('run_up',), values = ('',''))
+                           text=columns[c], tags=('run_up',), values=('',''))
         return [i[1] for i in tables]
-
 
     def create_and_add_results(self, instructions, tab_tk_id,
                                limit = -1, log = None):
@@ -521,9 +517,11 @@ xlzceksqu6ET7JwtLRrhwNt+1HdDUQAAOw==
             
         self.conn.conn.isolation_level = isolation #restore standard
 
+
 class notebook_for_queries():
     """Create a Notebook with a list in the First frame
        and query results in following treeview frames """
+
     def __init__(self, tk_win , root, queries):
         self.tk_win=tk_win
         self.root = root
@@ -538,9 +536,8 @@ class notebook_for_queries():
         #grid widgets
         self.notebook.grid(row=0, column=0, sticky=(N,W,S,E))
 
-
     def new_query_tab(self, title, query ):
-        "add a new Tab 'title' to the notebook, containing the Script 'query'"
+        """add a Tab 'title' to the notebook, containing the Script 'query'"""
 
         fw_welcome = ttk.Panedwindow(self.tk_win, orient=VERTICAL)   #tk_win   
         fw_welcome.pack(fill = 'both', expand=True)
@@ -582,23 +579,20 @@ class notebook_for_queries():
                                         "","click on ('->') to run Script")
         return working_tab_id #gives back tk_id reference of the new tab
 
-
     def del_tab(self):
        """delete active notebook tab's results"""
        given_tk_id = self.notebook.select()
        if given_tk_id !='': self.notebook.forget(given_tk_id)
 
-
     def remove_treeviews(self, given_tk_id  ):
-        "remove results from given tab tk_id"
+        """remove results from given tab tk_id"""
         if given_tk_id !='':
             myz  =  self.fw_result_nbs[given_tk_id]
             for xx in list(myz.children.values()):
                 xx.grid_forget() ; xx.destroy()
-
-        
+     
     def add_treeview(self, given_tk_id,  columns, data, title = "__", subt=""):
-        "add a dataset result to the given tab tk_id"
+        """add a dataset result to the given tab tk_id"""
         #Ensure we work on lists
         tree_columns = [columns] if type(columns)==type('e') else columns
         lines = [data] if type(data)==type('e') else data
@@ -667,10 +661,10 @@ class notebook_for_queries():
         # switch the heading so that it will sort in the opposite direction
         tree.heading(col, command=lambda col=col: 
                                  self.sortby(tree, col, int(not descending)))
-    
+  
 
 def guess_sql_creation(table_name, separ, decim, header, data_is, quoter='"'):
-    "guessing sql creation request"
+    """guessing sql creation request"""
     try:
         dlines = list(csv.reader(data_is.replace('\n\n','\n').splitlines()
             ,delimiter = separ, quotechar = quoter))
@@ -752,7 +746,7 @@ def Guess_encoding(csv_file):
 
 
 def export_csv_dialog(query = "select 42", text="undefined.csv", actions=[]):
-    "export csv dialog"
+    """export csv dialog"""
     #Proposed encoding (we favorize utf-8 or utf-8-sig)
     encodings = ["utf-8",locale.getdefaultlocale()[1],"utf-16","utf-8-sig"]
     if os.name == 'nt': 
@@ -776,7 +770,7 @@ def export_csv_dialog(query = "select 42", text="undefined.csv", actions=[]):
 
 
 def create_dialog(title, fields_in, buttons, actions ):
-    "create a formular with title, fields, button, data"
+    """create a formular with title, fields, button, data"""
     #Drawing the request form 
     top = Toplevel()
     top.title(title)
@@ -870,7 +864,7 @@ def create_dialog(title, fields_in, buttons, actions ):
 
 
 def import_csvtb_ok(thetop, entries, actions):
-    "read input values from tk formular"
+    """read input values from tk formular"""
     conn  , actualize_db = actions
     #build dico of result
     d={f[0]:f[1]()  for f in entries if type(f)!= type('e')}
@@ -919,9 +913,8 @@ def import_csvtb_ok(thetop, entries, actions):
 
 
 def export_csv_ok(thetop, entries, actions):
-    "export a csv table (action)"
+    """export a csv table (action)"""
     conn = actions[0]
-    import csv
     #build dico of result
     d={f[0]:f[1]()  for f in entries if type(f)!= type('e')}
 
@@ -944,7 +937,7 @@ def export_csv_ok(thetop, entries, actions):
     
 
 def export_csvtb( actions):
-    "get selected table definition and launch cvs export dialog"
+    """get selected table definition and launch cvs export dialog"""
     #determine selected table   
     db_tree = actions[1]
     selitem = db_tree.focus() #get tree item having the focus  
@@ -960,7 +953,7 @@ def export_csvtb( actions):
 
               
 def export_csvqr( actions):
-    "get tab selected definition and launch cvs export dialog"
+    """get tab selected definition and launch cvs export dialog"""
     n = actions[1]
     active_tab_id = n.notebook.select()
     if active_tab_id !='': #get current selection (or all)
@@ -971,7 +964,7 @@ def export_csvqr( actions):
 
     
 def get_things( conn,   what , attached_db = "", tbl =""):
-    "database objects of 'what': [objectCode, objectName, Definition,[Lvl -1]]"
+    """'what' objects : [objectCode, objectName, Definition, [Lvl - 1]]"""
     #dico = what : what qry, result id, result text, result crea, 'what' below 
     #    or what : other 'what' specification to use in thi dictionnary
     dico={'index': 'trigger',
@@ -1015,7 +1008,7 @@ def get_things( conn,   what , attached_db = "", tbl =""):
 
 
 class baresql():
-    "a tiny sql wrapper"
+    """a tiny sql wrapper"""
     def __init__(self, connection="", keep_log = False, cte_inline = True):
         self.dbname = connection.replace(":///","://").replace("sqlite://","")
         self.conn = sqlite.connect(self.dbname,
@@ -1030,7 +1023,7 @@ class baresql():
         self.conn_def = {}
             
     def iterdump(self):
-        "slightly improved database dump over default sqlite3 module dump"
+        """slightly improved database dump over default sqlite3 module dump"""
         #Force detection of utf-8
         yield("/*utf-8 bug safety : 你好 мир Artisou à croute blonde*/\n")
         #Add the Python functions pydef 
@@ -1053,12 +1046,12 @@ class baresql():
             yield("\n/*SET foreign_key_checks = %s;/*if Mysql*/;\n"%row[0])
         
     def execute(self, sql , env = None):
-        "execute sql but intercept log"
+        """execute sql but intercept log"""
         if self.do_log: self.log.append(sql)
         return self.conn.execute(sql )        
 
     def createpydef(self, sql):
-        "generates and registr a pydef instruction"
+        """generates and registr a pydef instruction"""
         instruction = sql.strip('; \t\n\r')
         #create Python function in Python
         exec(instruction[2:]  , globals() , locals())        
@@ -1075,10 +1068,9 @@ class baresql():
         self.conn_def[instr_name]={'parameters':instr_parms, 'inst':instr_add,
                                   'help':the_help, 'pydef':instruction}
         return instr_name
-
                 
     def get_tokens(self, sql, start = 0):
-        "from given sql start position, yield tokens (value + token type)"
+        """from given sql start position, yield tokens (value + token type)"""
         length = len(sql) ; 
         i = start ; token = 'TK_OTHER'
         dico = {' ':'TK_SP', '\t':'TK_SP', '\n':'TK_SP', '\f':'TK_SP',
@@ -1124,7 +1116,6 @@ class baresql():
                     if i < length : i += 1
             yield sql[start:i], token
             start = i
-
 
     def get_sqlsplit (self, sql, remove_comments=False):
         """split an sql file in list of separated sql orders"""
