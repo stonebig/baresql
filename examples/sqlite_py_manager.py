@@ -76,7 +76,7 @@ class App:
         self.menu.add_command(label='New Database', command=self.new_db)
         self.menu.add_command(label='New In-Memory Database',
                               command=lambda: self.new_db(":memory:"))
-        self.menu.add_command(label='Connect to Database ...',
+        self.menu.add_command(label='Open Database ...',
                               command=self.open_db)
         self.menu.add_command(label='Close Database', command=self.close_db)
         self.menu.add_separator()
@@ -87,7 +87,7 @@ class App:
         self.menu_help.add_command(label='about',
              command=lambda: messagebox.showinfo(message="""
              \nSqlite_py_manager : a graphic SQLite Client in 1 Python file
-             \nversion 2014-06-08b : 'The magic 8th PEP'
+             \nversion 2014-06-08c : 'The magic 8th PEP'
              \n(https://github.com/stonebig/baresql/blob/master/examples)"""))
 
     def create_toolbar(self):
@@ -133,6 +133,11 @@ class App:
                            ("all", "*.*")])
         if filename != '':
             self.database_file = filename
+            if os.path.isfile(filename):
+                if messagebox.askyesno(
+                    message='Confirm Destruction of previous Datas ?',
+                    icon='question', title='Destroying'):
+                    os.remove(filename)    
             self.conn = Baresql(self.database_file)
             self.actualize_db()
 
