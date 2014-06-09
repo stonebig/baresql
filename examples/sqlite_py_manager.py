@@ -38,7 +38,6 @@ class App:
 
         self.font_size = 10
         self.font_wheight = 0
-        # self.chg_size()
         # With a Menubar and Toolbar
         self.create_menu()
         self.create_toolbar()
@@ -87,7 +86,7 @@ class App:
         self.menu_help.add_command(label='about',
              command=lambda: messagebox.showinfo(message="""
              \nSqlite_py_manager : a graphic SQLite Client in 1 Python file
-             \nversion 2014-06-09a : 'The magic 8th PEP'
+             \nversion 2014-06-09b : 'The magic 8th PEP'
              \n(https://github.com/stonebig/baresql/blob/master/examples)"""))
 
     def create_toolbar(self):
@@ -96,7 +95,7 @@ class App:
         self.toolbar.pack(side=TOP, fill=X)
         self.tk_icon = self.get_tk_icons()
 
-        # list of image, action, tootip :
+        # list of (image, action, tooltip) :
         to_show = [
            ('refresh_img', self.actualize_db, "Actualize Databases"),
            ('run_img', self.run_tab, "Run Script Selection"),
@@ -170,11 +169,10 @@ class App:
             title="save database structure in a text file",
             filetypes=[("default", "*.sql"), ("other", "*.txt"),
                        ("all", "*.*")])
-        if filename == '':
-            return
-        with io.open(filename, 'w', encoding='utf-8') as f:
-            for line in self.conn.iterdump():
-                f.write('%s\n' % line)
+        if filename != '':
+            with io.open(filename, 'w', encoding='utf-8') as f:
+                for line in self.conn.iterdump():
+                    f.write('%s\n' % line)
 
     def sav_script(self):
         """save a script in a file"""
@@ -188,11 +186,11 @@ class App:
                 title="save script in a sql file",
                 filetypes=[("default", "*.sql"), ("other", "*.txt"),
                            ("all", "*.*")])
-        if filename == "":
-            return
-        with io.open(filename, 'w', encoding='utf-8') as f:
-            f.write("/*utf-8 bug safety : 你好 мир Artisou à croute blonde*/\n")
-            f.write(script)
+        if filename != "":
+            with io.open(filename, 'w', encoding='utf-8') as f:
+                if "你好 мир Artisou à croute" not in script:
+                    f.write("/*utf-8 tag : 你好 мир Artisou à croute*/\n")
+                f.write(script)
 
     def attach_db(self):
         """attach an existing database"""
@@ -283,7 +281,8 @@ class App:
         if filename == "":
             return
         with io.open(filename, 'w', encoding='utf-8') as f:
-            f.write("/*utf-8 bug safety : 你好 мир Artisou à croute blonde*/\n")
+            if "你好 мир Artisou à croute" not in script:
+                f.write("/*utf-8 tag : 你好 мир Artisou à croute*/\n")
             self.create_and_add_results(script, active_tab_id, limit=99, log=f)
             fw.focus_set()  # workaround bug http://bugs.python.org/issue17511
 
@@ -329,7 +328,7 @@ class App:
         # to create this base 64 from a toto.gif image of 24x24 size do :
         #    import base64
         #    b64 = base64.encodestring(open(r"toto.gif","rb").read())
-        #    print("'gif_img':'''\\\n" + b64.decode("utf8") + "'''")
+        #    print("'gif_img': '''\\\n" + b64.decode("utf8") + "'''")
         icons = {
             'run_img': '''\
 R0lGODdhGAAYAJkAADOqM////wCqMwAAACwAAAAAGAAYAAACM4SPqcvt7wJ8oU5W8025b9OFW0hO
@@ -404,10 +403,7 @@ A8cdDFkiZyiIwDpnCYqzCF2lr2rTHVKbDgsTJG52yE8R0nRSJA7qNOhpVbFPHhdhPF20w46S+f2h
 xlzceksqu6ET7JwtLRrhwNt+1HdDUQAAOw==
 '''
         }
-        # transform 'in place' base64 icons into tk_icons
-        for key, value in icons.items():
-            icons[key] = PhotoImage(data=value)
-        return icons
+        return {k: PhotoImage(data=v) for k, v in icons.items()}    
 
     def createToolTip(self, widget, text):
         """create a tooptip box for a widget."""
@@ -1123,8 +1119,8 @@ class Baresql():
 
     def iterdump(self):
         """dump the database (add tweaks over the default dump)"""
-        # force detection of utf-8
-        yield("/*utf-8 bug safety : 你好 мир Artisou à croute blonde*/\n")
+        # force detection of utf-8 by placing an only utf-8 comment at top
+        yield("/*utf-8 tag : 你好 мир Artisou à croute*/\n")
         # add the Python functions pydef
         for k in self.conn_def.values():
             yield(k['pydef'] + ";\n")
@@ -1141,7 +1137,7 @@ class Baresql():
         for row in self.conn.execute("PRAGMA foreign_keys"):
             flag = 'ON' if row[0] == 1 else 'OFF'
             yield("PRAGMA foreign_keys = %s;/*if SQlite*/;" % flag)
-            yield("PRAGMA foreign_keys = %s;/*if SQlite, twice*/;" % flag)
+            yield("PRAGMA foreign_keys = %s;/*if SQlite bug*/;" % flag)
             yield("PRAGMA foreign_key_check;/*if SQLite, check*/;")
             yield("\n/*SET foreign_key_checks = %s;/*if Mysql*/;\n" % row[0])
 
