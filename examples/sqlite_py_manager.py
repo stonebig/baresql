@@ -87,7 +87,7 @@ class App:
         self.menu_help.add_command(label='about',
              command=lambda: messagebox.showinfo(message="""
              \nSqlite_py_manager : a graphic SQLite Client in 1 Python file
-             \nversion 2014-06-08c : 'The magic 8th PEP'
+             \nversion 2014-06-09a : 'The magic 8th PEP'
              \n(https://github.com/stonebig/baresql/blob/master/examples)"""))
 
     def create_toolbar(self):
@@ -1056,9 +1056,10 @@ def get_things(conn, what, attached_db="", tbl=""):
     #    or what : other 'what' specification to use in thi dictionnary
     dico = {
         'index': 'trigger',
-        'trigger': ("""SELECT '{0:s}' || name, name, sql FROM
-                    {0:s}sqlite_master WHERE type='{1:s}' ORDER BY name""",
-                    '{0:s}', '{1:s}', '{2:s}', ''),
+        'trigger': (
+            """SELECT '{0:s}' || name, name, coalesce(sql,'--auto') sql
+            FROM {0:s}sqlite_master WHERE type='{1:s}' ORDER BY name""",
+            '{0:s}', '{1:s}', '{2:s}', ''),
         'master_table': (
             """SELECT '{0:s}sqlite_master', 'sqlite_master', '--auto'
             UNION
