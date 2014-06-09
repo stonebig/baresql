@@ -86,7 +86,7 @@ class App:
         self.menu_help.add_command(label='about',
              command=lambda: messagebox.showinfo(message="""
              \nSqlite_py_manager : a graphic SQLite Client in 1 Python file
-             \nversion 2014-06-09b : 'The magic 8th PEP'
+             \nversion 2014-06-09c : 'Touch of Zen'
              \n(https://github.com/stonebig/baresql/blob/master/examples)"""))
 
     def create_toolbar(self):
@@ -134,9 +134,9 @@ class App:
             self.database_file = filename
             if os.path.isfile(filename):
                 if messagebox.askyesno(
-                    message='Confirm Destruction of previous Datas ?',
-                    icon='question', title='Destroying'):
-                    os.remove(filename)    
+                   message='Confirm Destruction of previous Datas ?',
+                   icon='question', title='Destroying'):
+                    os.remove(filename)
             self.conn = Baresql(self.database_file)
             self.actualize_db()
 
@@ -223,24 +223,25 @@ class App:
         # delete existing tree entries before re-creating them
         for node in self.db_tree.get_children():
             self.db_tree.delete(node)
-        # create initial node
+        # create top node
         id0 = self.db_tree.insert(
             "", 0, "Database",
             text=(self.database_file.replace("\\", "/")).split("/")[-1],
             values=(self.database_file, ""))
-        # add master_table, Tables, Views, Trigger, Index
-        for category in ['master_table', 'table', 'view', 'trigger', 'index',
+        # add Database Objects, by Category
+        for categ in ['master_table', 'table', 'view', 'trigger', 'index',
                          'pydef']:
-            self.add_thingsnew(id0, category)
-        # redo for attached databases
-        for att_db in self.add_thingsnew(id0, 'attached_databases'):
-            # create initial node for attached table
+            self.feed_dbtree(id0, categ)
+        # for attached databases
+        for att_db in self.feed_dbtree(id0, 'attached_databases'):
+            # create another top node
             id0 = self.db_tree.insert(
                 "", 'end', att_db + "(Attached)",
                 text=att_db+" (attached database)", values=(att_db, ""))
-            # add attached db's master_table, Tables, Views, Trigger, and Index
+            # add attached Database Objects, by Category
             for categ in ['master_table', 'table', 'view', 'trigger', 'index']:
-                self.add_thingsnew(id0, categ, att_db)
+                self.feed_dbtree(id0, categ, att_db)
+        # update time of last refresh
         self.db_tree.heading('#0', text=(
             datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
 
@@ -403,7 +404,7 @@ A8cdDFkiZyiIwDpnCYqzCF2lr2rTHVKbDgsTJG52yE8R0nRSJA7qNOhpVbFPHhdhPF20w46S+f2h
 xlzceksqu6ET7JwtLRrhwNt+1HdDUQAAOw==
 '''
         }
-        return {k: PhotoImage(data=v) for k, v in icons.items()}    
+        return {k: PhotoImage(data=v) for k, v in icons.items()}
 
     def createToolTip(self, widget, text):
         """create a tooptip box for a widget."""
@@ -439,40 +440,44 @@ xlzceksqu6ET7JwtLRrhwNt+1HdDUQAAOw==
         widget.bind("<Enter>", enter)
         widget.bind("<Leave>", close)
 
-    def add_thingsnew(self, root_id, what, attached_db=""):
-        """add a sub-tree to database tree pan"""
-        tables = get_things(self.conn, what, attached_db)
-        # level 1 : create  the "what" node (as not empty)
+    def feed_dbtree(self, root_id, category, attached_db=""):
+        """feed database treeview for category, return list of leaves names"""
 
-        def id(t): return ('"%s".' % t.replace('"', '""')) if t != "" else t
-        attached = id(attached_db)
+        # prepare re-formatting functions for fields and database names
+        def f(t): return ('"%s"' % t.replace('"', '""')) if t != "" else t
+
+        def db(t): return ('"%s".' % t.replace('"', '""')) if t != "" else t
+        attached = db(attached_db)
+
+        # get Category list of [unique_name, name, definition, sub_category]
+        tables = get_leaves(self.conn, category, attached_db)
         if len(tables) > 0:
+            # level 1 : create  the "category" node (as Category is not empty)
             idt = self.db_tree.insert(
-                root_id, "end",
-                "%s%s" % (attached, what),
-                text="%s (%s)" % (what, len(tables)), values=("", ""))
-            # level 2 : print object creation, and '(Definition)' if Table/View
-            for tab in tables:
-                definition = tab[2]
+                root_id, "end", "%s%s (node)" % (attached, category),
+                text="%s (%s)" % (category, len(tables)), values=("", ""))
+            for t_id, t_name, definition, sub_cat in tables:
+                # level 2 : print object creation, and '(Definition)' if fields
                 sql3 = ""
-                if tab[3] != '':
+                if sub_cat != '':
                     # it's a table : prepare a Query with names of each column
-                    colnames = [col[1] for col in tab[3]]
-                    columns = [col[0] for col in tab[3]]
+                    sub_c = get_leaves(self.conn, sub_cat, attached_db, t_name)
+                    colnames = [col[1] for col in sub_c]
+                    columns = [col[1] + ' ' + col[2] for col in sub_c]
                     sql3 = 'select "'+'" , "'.join(colnames)+'"  from ' + (
-                        '%s"%s"' % (attached, tab[1]))
+                        '%s%s' % (attached, f(t_name)))
                 idc = self.db_tree.insert(
-                    idt, "end", "%s%s" % (attached, tab[0]),
-                    text=tab[1], tags=('run',), values=(definition, sql3))
+                    idt, "end", "%s%s" % (attached, t_id),
+                    text=t_name, tags=('run',), values=(definition, sql3))
                 if sql3 != "":
                     self.db_tree.insert(
-                        idc, "end", ("%s%s.%s" % (attached, tab[1], -1)),
+                        idc, "end", ("%s%s.%s" % (attached, t_name, -1)),
                         text=['(Definition)'], tags=('run',),
                         values=(definition, ""))
                     # level 3 : Insert a line per column of the Table/View
-                    for c in range(len(columns)):
+                    for c in range(len(sub_c)):
                         self.db_tree.insert(
-                            idc, "end", ("%s%s.%s" % (attached, tab[1], c)),
+                            idc, "end", "%s%s" % (sub_c[c][0], c),
                             text=columns[c], tags=('run_up',), values=('', ''))
         return [i[1] for i in tables]
 
@@ -1046,57 +1051,45 @@ def export_csvqr(actions):
             export_csv_dialog(query, "Export Query", actions)
 
 
-def get_things(conn, what, attached_db="", tbl=""):
-    """'what' objects : [objectCode, objectName, Definition, [Lvl - 1]]"""
-    # dico = what : what qry, result id, result text, result crea, 'what' below
-    #    or what : other 'what' specification to use in thi dictionnary
-    dico = {
-        'index': 'trigger',
-        'trigger': (
-            """SELECT '{0:s}' || name, name, coalesce(sql,'--auto') sql
-            FROM {0:s}sqlite_master WHERE type='{1:s}' ORDER BY name""",
-            '{0:s}', '{1:s}', '{2:s}', ''),
-        'master_table': (
-            """SELECT '{0:s}sqlite_master', 'sqlite_master', '--auto'
-            UNION
-               SELECT '{0:s}'||name, name, sql FROM {0:s}sqlite_master
-                   WHERE type='table' AND name LIKE 'sqlite_%'
-                   ORDER BY name""",
-            '{0:s}', '{1:s}', '{2:s}', 'fields'),
-        'table': 'view',
-        'view': ("""SELECT '{0:s}' || name, name, sql FROM {0:s}sqlite_master
-                     WHERE type='{1:s}' AND NOT
-                     (type='table' AND name LIKE 'sqlite_%') ORDER BY name""",
-                 '{0:s}', '{1:s}', '{2:s}', 'fields'),
-        'fields': ("PRAGMA {0:s}TABLE_INFO([{2:s}])",
-                   '{1:s} {2:s}', '{1:s}', '', ''),
-        'attached_databases': ("PRAGMA database_list", '{1:s}', '{1:s}',
-                               "ATTACH DATABASE '{2:s}' as '{1:s}'", ''),
-        'pydef': ("#N/A", '{0:s}', '{0:s}', '{1:s}', '')}
+def get_leaves(conn, category, attached_db="", tbl=""):
+    """returns a list of 'category' objects in attached_db
+       [objectCode, objectLabel, Definition, 'sub-level']
+    """
+    # create formatting shortcuts
+    def f(t): return ('"%s"' % t.replace('"', '""')) if t != "" else t
 
-    def id(t): return ('"%s".' % t.replace('"', '""')) if t != "" else t
+    def d(t): return ('%s.' % t) if t != "" else t
 
-    attached = id(attached_db)
-    order = dico[what]
-    if isinstance(order, type('e')):  # indirection
-        order = dico[order]
-    Tables = []
-    if what == "pydef":  # pydef request is not sql
-        resu = [[k, v['pydef']] for k, v in conn.conn_def.items()]
+    # Initialize datas
+    Tables, db, tb = [], d(attached_db), f(tbl)
 
-    else:
-        # others are sql request
-        resu = conn.execute(order[0].format(attached, what, tbl)).fetchall()
-        # result must be transformed in a list, and attached db 'main' removed
-        resu = list(resu) if what != 'attached_databases' else list(resu)[1:]
-    # generate tree list for this 'what' category level :
-    #     [objectCode, objectName, Definition, [Level below] or '']
-    for rec in resu:
-        result = [order[i].format(*rec) for i in range(1, 5)]
-        if result[3] != '':
-            resu2 = get_things(conn, result[3], attached_db, result[1])
-            result[3] = resu2
-        Tables.append(result)
+    if category == "pydef":  # pydef request is not sql, answer is direct
+        Tables = [[k, k, v['pydef'], ''] for k, v in conn.conn_def.items()]
+    elif category == 'attached_databases':
+        # get all attached database, but not the first one ('main')
+        resu = list((conn.execute("PRAGMA database_list").fetchall()))[1:]
+        for c in resu:
+            instruct = "ATTACH DATABASE %s as %s" % (f(c[2]), f(c[1]))
+            Tables.append([c[1], c[1], instruct, ''])
+    elif category == 'fields':
+        resu = conn.execute("PRAGMA %sTABLE_INFO(%s)" % (db, tb)).fetchall()
+        Tables = [[db + tb + "." + f(c[1]), c[1], c[2], ''] for c in resu]
+    elif category in ('index', 'trigger', 'master_table', 'table', 'view'):
+        # others are 1 sql request that generates directly Tables
+        if category in ('index', 'trigger'):
+            sql = """SELECT '{0}' || name, name, coalesce(sql,'--auto') , ''
+                  FROM {0}sqlite_master WHERE type='{1}' ORDER BY name"""
+        elif category == 'master_table':
+            sql = """SELECT '{0}sqlite_master', 'sqlite_master', '--auto'
+                  , 'fields' UNION SELECT '{0}'||name, name, sql, 'fields'
+                  FROM {0}sqlite_master
+                  WHERE type='table' AND name LIKE 'sqlite_%' ORDER BY name"""
+        elif category in ('table', 'view'):
+            sql = """SELECT '{0}' || name, name, sql , 'fields'
+                FROM {0}sqlite_master WHERE type = '{1}' AND NOT
+                (type='table' AND name LIKE 'sqlite_%') ORDER BY name"""
+        Tables = list(conn.execute(sql.format(db, category, tbl)).fetchall())
+
     return Tables
 
 
