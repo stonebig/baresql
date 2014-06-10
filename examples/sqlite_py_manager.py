@@ -86,7 +86,7 @@ class App:
         self.menu_help.add_command(label='about',
              command=lambda: messagebox.showinfo(message="""
              \nSqlite_py_manager : a graphic SQLite Client in 1 Python file
-             \nversion 2014-06-09c : 'Touch of Zen'
+             \nversion 2014-06-10a : 'Sanitizer of Python (xkcd.com/327)'
              \n(https://github.com/stonebig/baresql/blob/master/examples)"""))
 
     def create_toolbar(self):
@@ -152,7 +152,7 @@ class App:
             self.actualize_db()
 
     def load_script(self):
-        """load a script file"""
+        """load a script file, ask validation of detected Python code"""
         filename = filedialog.askopenfilename(
             defaultextension='.sql',
             filetypes=[("default", "*.sql"), ("other", "*.txt"),
@@ -160,7 +160,23 @@ class App:
         if filename != '':
             text = ((filename.replace("\\", "/")).split("/")[-1]).split(".")[0]
             with io.open(filename, encoding=guess_encoding(filename)[0]) as f:
-                new_tab_ref = self.n.new_query_tab(text, f.read())
+                script = f.read()
+                sqls = self.conn.get_sqlsplit(script, remove_comments=True)
+                dg = [s for s in sqls if s.strip(' \t\n\r')[:5] == "pydef"]
+                if dg:
+                    fields = ['', ['In Script File:', filename, 'r', 100], '',
+                              ["Python Script", "".join(dg), 'r', 80, 20]]
+
+                    create_dialog(("Ok for this Python Code ?"), fields,
+                                  ("Confirm", self.load_script_ok),
+                                  [text, script])
+                else:
+                    new_tab_ref = self.n.new_query_tab(text, script)
+
+    def load_script_ok(self, thetop, entries, actions):
+        """continue loading of script after confirmation dialog"""
+        new_tab_ref = self.n.new_query_tab(*actions)
+        thetop.destroy()
 
     def savdb_script(self):
         """save database as a script file"""
@@ -224,10 +240,9 @@ class App:
         for node in self.db_tree.get_children():
             self.db_tree.delete(node)
         # create top node
+        dbtext = (self.database_file.replace("\\", "/")).split("/")[-1]
         id0 = self.db_tree.insert(
-            "", 0, "Database",
-            text=(self.database_file.replace("\\", "/")).split("/")[-1],
-            values=(self.database_file, ""))
+            "", 0, "Database", text=dbtext, values=(dbtext, ""))
         # add Database Objects, by Category
         for categ in ['master_table', 'table', 'view', 'trigger', 'index',
                          'pydef']:
@@ -453,8 +468,9 @@ xlzceksqu6ET7JwtLRrhwNt+1HdDUQAAOw==
         tables = get_leaves(self.conn, category, attached_db)
         if len(tables) > 0:
             # level 1 : create  the "category" node (as Category is not empty)
+            root_txt = "%s(%s)" % (attached, category)
             idt = self.db_tree.insert(
-                root_id, "end", "%s%s (node)" % (attached, category),
+                root_id, "end", root_txt,
                 text="%s (%s)" % (category, len(tables)), values=("", ""))
             for t_id, t_name, definition, sub_cat in tables:
                 # level 2 : print object creation, and '(Definition)' if fields
@@ -464,21 +480,21 @@ xlzceksqu6ET7JwtLRrhwNt+1HdDUQAAOw==
                     sub_c = get_leaves(self.conn, sub_cat, attached_db, t_name)
                     colnames = [col[1] for col in sub_c]
                     columns = [col[1] + ' ' + col[2] for col in sub_c]
-                    sql3 = 'select "'+'" , "'.join(colnames)+'"  from ' + (
+                    sql3 = 'select "'+'" , "'.join(colnames)+'" from ' + (
                         '%s%s' % (attached, f(t_name)))
                 idc = self.db_tree.insert(
-                    idt, "end", "%s%s" % (attached, t_id),
+                    idt, "end", "%s%s" % (root_txt, t_id),
                     text=t_name, tags=('run',), values=(definition, sql3))
                 if sql3 != "":
                     self.db_tree.insert(
-                        idc, "end", ("%s%s.%s" % (attached, t_name, -1)),
+                        idc, "end", ("%s%s;d" % (root_txt, t_id)),
                         text=['(Definition)'], tags=('run',),
                         values=(definition, ""))
                     # level 3 : Insert a line per column of the Table/View
                     for c in range(len(sub_c)):
                         self.db_tree.insert(
-                            idc, "end", "%s%s" % (sub_c[c][0], c),
-                            text=columns[c], tags=('run_up',), values=('', ''))
+                          idc, "end", "%s%s%s" % (root_txt, t_id, sub_c[c][0]),
+                          text=columns[c], tags=('run_up',), values=('', ''))
         return [i[1] for i in tables]
 
     def create_and_add_results(self, instructions, tab_tk_id,
@@ -1070,10 +1086,10 @@ def get_leaves(conn, category, attached_db="", tbl=""):
         resu = list((conn.execute("PRAGMA database_list").fetchall()))[1:]
         for c in resu:
             instruct = "ATTACH DATABASE %s as %s" % (f(c[2]), f(c[1]))
-            Tables.append([c[1], c[1], instruct, ''])
+            Tables.append([c[0], c[1], instruct, ''])
     elif category == 'fields':
         resu = conn.execute("PRAGMA %sTABLE_INFO(%s)" % (db, tb)).fetchall()
-        Tables = [[db + tb + "." + f(c[1]), c[1], c[2], ''] for c in resu]
+        Tables = [[c[1], c[1], c[2], ''] for c in resu]
     elif category in ('index', 'trigger', 'master_table', 'table', 'view'):
         # others are 1 sql request that generates directly Tables
         if category in ('index', 'trigger'):
