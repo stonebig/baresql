@@ -86,7 +86,7 @@ class App:
         self.menu_help.add_command(label='about',
              command=lambda: messagebox.showinfo(message="""
              \nSqlite_py_manager : a graphic SQLite Client in 1 Python file
-             \nversion 2014-06-10a : 'Sanitizer of Python (xkcd.com/327)'
+             \nversion 2014-06-14a : 'It's a long way to temporary !'
              \n(https://github.com/stonebig/baresql/blob/master/examples)"""))
 
     def create_toolbar(self):
@@ -115,7 +115,7 @@ class App:
             "Run Script+Output to a file (First 200 rec. per Qry)"),
            ('sqlin_img', self.load_script, "Load a SQL Script File"),
            ('sqlsav_img', self.sav_script, "Save a SQL Script in a File"),
-           ('chgsz_img', self.chg_size, "Modify Font Size")]
+           ('chgsz_img', self.chg_fontsize, "Modify Font Size")]
 
         for img, action, tip in to_show:
             b = Button(self.toolbar, image=self.tk_icon[img], command=action)
@@ -242,17 +242,19 @@ class App:
         # create top node
         dbtext = (self.database_file.replace("\\", "/")).split("/")[-1]
         id0 = self.db_tree.insert(
-            "", 0, "Database", text=dbtext, values=(dbtext, ""))
+            "", 0, "Database", text="main (%s)" % dbtext, values=(dbtext, ""))
         # add Database Objects, by Category
         for categ in ['master_table', 'table', 'view', 'trigger', 'index',
-                         'pydef']:
-            self.feed_dbtree(id0, categ)
+                      'pydef']:
+            self.feed_dbtree(id0, categ, "main")
         # for attached databases
         for att_db in self.feed_dbtree(id0, 'attached_databases'):
             # create another top node
-            id0 = self.db_tree.insert(
-                "", 'end', att_db + "(Attached)",
-                text=att_db+" (attached database)", values=(att_db, ""))
+            dbtext2, insert_position = att_db + "(Attached)", 'end'
+            if att_db == "temp":
+                dbtext2, insert_position = "temp (%s)" % dbtext, 0
+            id0 = self.db_tree.insert("", insert_position, dbtext2,
+                                      text=dbtext2, values=(att_db, ""))
             # add attached Database Objects, by Category
             for categ in ['master_table', 'table', 'view', 'trigger', 'index']:
                 self.feed_dbtree(id0, categ, att_db)
@@ -302,7 +304,7 @@ class App:
             self.create_and_add_results(script, active_tab_id, limit=99, log=f)
             fw.focus_set()  # workaround bug http://bugs.python.org/issue17511
 
-    def chg_size(self):
+    def chg_fontsize(self):
         """change the display font size"""
         sizes = [10, 13, 14]
         font_types = ["TkDefaultFont", "TkTextFont", "TkFixedFont",
@@ -1078,6 +1080,7 @@ def get_leaves(conn, category, attached_db="", tbl=""):
 
     # Initialize datas
     Tables, db, tb = [], d(attached_db), f(tbl)
+    master = "sqlite_master" if db != "temp." else "sqlite_temp_master"
 
     if category == "pydef":  # pydef request is not sql, answer is direct
         Tables = [[k, k, v['pydef'], ''] for k, v in conn.conn_def.items()]
@@ -1094,18 +1097,18 @@ def get_leaves(conn, category, attached_db="", tbl=""):
         # others are 1 sql request that generates directly Tables
         if category in ('index', 'trigger'):
             sql = """SELECT '{0}' || name, name, coalesce(sql,'--auto') , ''
-                  FROM {0}sqlite_master WHERE type='{1}' ORDER BY name"""
+                  FROM {0}{3} WHERE type='{1}' ORDER BY name"""
         elif category == 'master_table':
-            sql = """SELECT '{0}sqlite_master', 'sqlite_master', '--auto'
-                  , 'fields' UNION SELECT '{0}'||name, name, sql, 'fields'
-                  FROM {0}sqlite_master
+            sql = """SELECT '{0}{3}', '{3}', '--auto', 'fields'
+                   UNION SELECT '{0}'||name, name, sql, 'fields'
+                  FROM {0}{3}
                   WHERE type='table' AND name LIKE 'sqlite_%' ORDER BY name"""
         elif category in ('table', 'view'):
             sql = """SELECT '{0}' || name, name, sql , 'fields'
-                FROM {0}sqlite_master WHERE type = '{1}' AND NOT
+                FROM {0}{3} WHERE type = '{1}' AND NOT
                 (type='table' AND name LIKE 'sqlite_%') ORDER BY name"""
-        Tables = list(conn.execute(sql.format(db, category, tbl)).fetchall())
-
+        Tables = list(conn.execute(sql.format(db, category, tbl,
+                                              master)).fetchall())
     return Tables
 
 
