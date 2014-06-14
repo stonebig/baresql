@@ -86,7 +86,7 @@ class App:
         self.menu_help.add_command(label='about',
              command=lambda: messagebox.showinfo(message="""
              \nSqlite_py_manager : a graphic SQLite Client in 1 Python file
-             \nversion 2014-06-14a : 'It's a long way to temporary !'
+             \nversion 2014-06-14b : 'It's a long way to temporary !'
              \n(https://github.com/stonebig/baresql/blob/master/examples)"""))
 
     def create_toolbar(self):
@@ -108,7 +108,8 @@ class App:
             "Import a CSV file into a Table"),
            ('csvex_img', lambda x=self: export_csvtb([x.conn, x.db_tree]),
             "Export Selected Table to a CSV file"),
-           ('dbdef_img', self.savdb_script, "Save Database as a SQL Script"),
+           ('dbdef_img', self.savdb_script,
+            "Save main Database as a SQL Script"),
            ('qryex_img', lambda x=self: export_csvqr([x.conn, x.n]),
             "Export Selected Query to a CSV file"),
            ('exe_img', self.exsav_script,
