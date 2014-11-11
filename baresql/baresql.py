@@ -441,7 +441,7 @@ class baresql(object):
             cards = ','.join(['?'] * len(df.columns))
             self.log.append("(pandas) INSERT INTO  %s  VALUES (%s)"
                  % (tablename , cards))        
-        write_frame(df, name = tablename, con = self.conn,  flavor = self.engine)
+        to_sql(df, name = tablename, con = self.conn,  flavor = self.engine)
 
 
     def cursor(self, q, env):
