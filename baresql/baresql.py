@@ -4,8 +4,11 @@ import numbers
 import sqlite3 as sqlite
 import numpy as np
 import pandas as pd
-from pandas.io.sql import write_frame, execute
-
+try:
+    from pandas.io.sql import to_sql, execute
+except: #pandas older version
+    from pandas.io.sql import write_frame, execute
+    to_sql = write_frame 
 #see http://stackoverflow.com/questions/17053435/mysql-connector-python-insert-python-variable-to-mysql-table
 try:
     import mysql.connector
