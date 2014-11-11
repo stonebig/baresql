@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+from __future__ import print_function, unicode_literals, division # Python2.7
 import re
 import numbers
 import sqlite3 as sqlite
@@ -88,6 +89,8 @@ class baresql(object):
         keep_log = keep log of SQL instructions generated
         cte_inline = inline CTE for SQLite instead of creating temporary views
         """
+        self.__version__ = '0.7.0'
+        self._title = "2014-11-11a : 'I Need this !'"
         #identify sql engine and database
         self.connection = connection
         if isinstance(self.connection, (type(u'a') , type('a'))):
@@ -362,7 +365,7 @@ class baresql(object):
             return self._execute_sql(q_raw,env)
         else:
             #transform the CTE into SQlite acceptable sql instructions
-            q_final_list = self._split_sql_cte(sql, self.cte_inline) 
+            q_final_list = self._split_sql_cte(sql_in, self.cte_inline) 
             #multiple sql must be executed one by one
             for q_single in q_final_list:
                 if q_single.strip() != "":

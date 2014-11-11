@@ -1,0 +1,3 @@
+include README.md
+include baresql/__init__.py
+include baresql/baresql.py
