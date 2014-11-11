@@ -47,7 +47,7 @@ Basic Example
   
   users = ['Alexander', 'Bernard', 'Charly', 'Danielle', 'Esmeralda', 'Franz']
   #  We use the python 'users' list like a SQL table
-  sql = "select 'Welcome ! ' , * from users$$"
+  sql = "select 'Welcome ! ' , c0 from users$$"
   bsqldf(sql)
  
 
