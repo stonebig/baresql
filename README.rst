@@ -34,8 +34,6 @@ You can install, upgrade, uninstall sqlite_bro.py with these commands::
 
 or just launch it from IPython with %load https://raw.githubusercontent.com/stonebig/baresql/master/baresql/baresql.py
 
-or just copy the file 'sqlite_bro.py' to any pc (with python installed)
-
 Basic Example 
 -------------
 
