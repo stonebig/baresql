@@ -89,8 +89,8 @@ class baresql(object):
         keep_log = keep log of SQL instructions generated
         cte_inline = inline CTE for SQLite instead of creating temporary views
         """
-        self.__version__ = '0.7.0'
-        self._title = "2014-11-11a : 'I Need this !'"
+        self.__version__ = '0.7.1'
+        self._title = "2014-11-12a : 'I Need this !'"
         #identify sql engine and database
         self.connection = connection
         if isinstance(self.connection, (type(u'a') , type('a'))):

@@ -43,6 +43,7 @@ Basic Example
 
   from __future__ import print_function, unicode_literals, division  # if Python2.7
   from baresql import baresql
+  bsql = baresql.baresql(keep_log = True )
   bsqldf = lambda q: bsql.df(q, dict(globals(),**locals()))
   
   users = ['Alexander', 'Bernard', 'Charly', 'Danielle', 'Esmeralda', 'Franz']
