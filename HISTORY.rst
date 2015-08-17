@@ -12,7 +12,9 @@ Changelog
 older versions :
 ----------------
 
- * 0.7dev : support of pandas 0.14 sqlalchemy
+ * 0.7.2 : support space in dataframe column title
+ * 0.7.1 : cleanups
+ * 0.7.0 : support of pandas 0.14 sqlalchemy
  * 0.6.6 : sqlite_py_manager.py browser added functions and fix, fix tokenizer error in baresql
  * 0.6.4 : minimal compatibility of sqlite_py_manager.py with old versions : python 2.7 and sqlite 3.6.21
  * 0.6.1 : a pure standard-installation Python SQLite browser in examples\sqlite_py_manager.py 
