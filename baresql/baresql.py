@@ -435,7 +435,7 @@ class baresql(object):
     def _write_table(self, tablename, df, conn):
         "writes a dataframe to the sqlite database"
         for col in df.columns:
-            if re.search("[() ]", col):
+            if re.search("[()]", col):
                 msg = "please follow SQLite column naming conventions: "
                 msg += "http://www.sqlite.org/lang_keywords.html"
                 raise Exception(msg)
