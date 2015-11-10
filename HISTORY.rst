@@ -2,12 +2,10 @@ Changelog
 =========
 
 
-2014-11-11a : v0.7.0.0 'I Need this !'
---------------------------------------
+2015-11-10a : v0.7.3 'You shall not Pass !'
+-------------------------------------------
 
-* first version on pypi
-* compatibility fix for python 2.7
-* removed sqlite_py_manager (gone to sqlite_bro package)
+* bug fix: Python keyword is 'pass', not 'Pass'
 
 older versions :
 ----------------

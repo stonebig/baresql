@@ -29,7 +29,7 @@ try:
         def _int64_to_mysql(self, value):
             return int(value)
 except:
-    Pass
+    pass
 
 class baresql(object):
     """
@@ -89,8 +89,8 @@ class baresql(object):
         keep_log = keep log of SQL instructions generated
         cte_inline = inline CTE for SQLite instead of creating temporary views
         """
-        self.__version__ = '0.7.2'
-        self._title = "2015-08-16a : 'Space in column title'"
+        self.__version__ = '0.7.3'
+        self._title = "2015-11-10a : 'You shall not Pass !'"
         #identify sql engine and database
         self.connection = connection
         if isinstance(self.connection, (type(u'a') , type('a'))):
@@ -132,7 +132,7 @@ class baresql(object):
             try:
                 self.conn.set_converter_class(NumpyMySQLConverter)
             except:
-                Pass
+                pass
         if  self.engine == "sqlite":
             cur=execute("select  sqlite_version()" ,self.conn)
             version = cur.fetchall()[0][0]
