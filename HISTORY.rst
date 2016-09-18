@@ -2,14 +2,15 @@ Changelog
 =========
 
 
-2015-11-10a : v0.7.3 'You shall not Pass !'
+2016-09-18a : v0.7.4 'pandas walk'
 -------------------------------------------
 
-* bug fix: Python keyword is 'pass', not 'Pass'
+* bug fix: pandas 0.19 compatibility fix
 
 older versions :
 ----------------
 
+ * 0.7.3 : Python keyword is 'pass', not 'Pass'
  * 0.7.2 : support space in dataframe column title
  * 0.7.1 : cleanups
  * 0.7.0 : support of pandas 0.14 sqlalchemy

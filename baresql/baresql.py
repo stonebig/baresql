@@ -5,6 +5,7 @@ import numbers
 import sqlite3 as sqlite
 import numpy as np
 import pandas as pd
+from distutils.version import LooseVersion, StrictVersion
 try:
     from pandas.io.sql import to_sql, execute
 except: #pandas older version
@@ -89,8 +90,8 @@ class baresql(object):
         keep_log = keep log of SQL instructions generated
         cte_inline = inline CTE for SQLite instead of creating temporary views
         """
-        self.__version__ = '0.7.3'
-        self._title = "2015-11-10a : 'You shall not Pass !'"
+        self.__version__ = '0.7.4'
+        self._title = "2016-09-18a : 'Pandas walk'"
         #identify sql engine and database
         self.connection = connection
         if isinstance(self.connection, (type(u'a') , type('a'))):
@@ -444,7 +445,11 @@ class baresql(object):
             cards = ','.join(['?'] * len(df.columns))
             self.log.append("(pandas) INSERT INTO  %s  VALUES (%s)"
                  % (tablename , cards))        
-        to_sql(df, name = tablename, con = self.conn,  flavor = self.engine)
+        # pandas 0.19 doesn't want it anymore
+        if LooseVersion(pd.__version__) < LooseVersion("0.18.9"):
+            to_sql(df, name = tablename, con = self.conn,  flavor = self.engine)
+        else:
+            to_sql(df, name = tablename, con = self.conn)
 
 
     def cursor(self, q, env):
