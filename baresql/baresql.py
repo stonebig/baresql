@@ -74,6 +74,10 @@ class baresql(object):
 
         print(bsqldf("select   * from users$$ where c0 <= %(limit)s"))
 
+        #pydef function (if Sqlite motor only, beware output are always strings)
+        bsqldf("pydef py_quad(s): return ('%s' %  float(s)**4);;")
+        bsqldf("select py_quad(2)")
+
     baresql re-use or re-implement parts of the code of 
        . github.com/yhat/pandasql (MIT licence, Copyright 2013 Yhat, Inc)
        . github.com/pydata/pandas (BSD simplified licence
@@ -90,8 +94,8 @@ class baresql(object):
         keep_log = keep log of SQL instructions generated
         cte_inline = inline CTE for SQLite instead of creating temporary views
         """
-        self.__version__ = '0.7.4'
-        self._title = "2016-09-18a : 'Pandas walk'"
+        self.__version__ = '0.7.5'
+        self._title = "2018-08-23a : 'Pydef works like in sqlite_bro'"
         #identify sql engine and database
         self.connection = connection
         if isinstance(self.connection, (type(u'a') , type('a'))):
@@ -117,6 +121,9 @@ class baresql(object):
         self.cte_inline = cte_inline
         self.cte_views = []
         self.cte_tables = []
+
+        #pydef memory
+        self.conn_def = {}
         
         #logging infrastructure
         self.do_log = keep_log
@@ -451,7 +458,27 @@ class baresql(object):
         else:
             to_sql(df, name = tablename, con = self.conn)
 
-
+    def createpydef(self, sql):
+        """generates and register a pydef instruction"""
+        instruction = sql.strip('; \t\n\r')
+        # create Python function in Python
+        print("***",instruction[2:],"***")
+        exec(instruction[2:], globals(), locals())
+        # add Python function in SQLite
+        firstline = (instruction[5:].splitlines()[0]).lstrip()
+        firstline = firstline.replace(" ", "") + "("
+        instr_name = firstline.split("(", 1)[0].strip()
+        instr_parms = firstline.count(',')+1
+        instr_add = (("self.conn.create_function('%s', %s, %s)" % (
+                      instr_name, instr_parms, instr_name)))
+        exec(instr_add, globals(), locals())
+        # housekeeping definition of pydef in a dictionnary
+        the_help = dict(globals(), **locals())[instr_name].__doc__
+        self.conn_def[instr_name] = {
+            'parameters': instr_parms, 'inst': instr_add,
+            'help': the_help, 'pydef': instruction}
+        return instr_name
+    
     def cursor(self, q, env):
         """
         query python or sql datas, returns a cursor of last instruction
@@ -485,7 +512,12 @@ class baresql(object):
             self._write_table( table_sql, df, self.conn)
         #multiple sql must be executed one by one
         for q_single in self.get_sqlsplit(sql, True) :
-            if q_single.strip() != "":
+            # inserting pydef from sqlite_bro
+            instru = q_single.replace(";", "").strip(' \t\n\r')
+            # for the show: first_line = (instru + "\n").splitlines()[0]
+            if instru[:5] == "pydef":
+                pydef = self.createpydef(instru)
+            elif q_single.strip() != "":
                 #cleanup previous CTE temp tables before executing another sql
                 self.remove_tmp_tables("cte")
                 cur = self._execute_cte(q_single,  env)
