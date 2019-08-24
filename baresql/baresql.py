@@ -3,6 +3,15 @@ from __future__ import print_function, unicode_literals, division # Python2.7
 import re
 import numbers
 import sqlite3 as sqlite
+import sys
+import os
+import locale
+import csv
+import datetime
+import io
+import codecs
+import shlex  # Simple lexical analysis
+
 import numpy as np
 import pandas as pd
 from distutils.version import LooseVersion, StrictVersion
@@ -92,8 +101,8 @@ class baresql(object):
             "sqlite:///.baresql.db" = sqlite on disk database ".baresql.db"
         keep_log = keep log of SQL instructions generated
         """
-        self.__version__ = '0.7.6dev1'
-        self._title = "2018-08-24 : 'remove pseudo-cte trick'"
+        self.__version__ = '0.7.6dev3'
+        self._title = "2018-08-24 : 'remove pseudo-cte, tokens like sqlite_bro'"
         #identify sql engine and database
         self.connection = connection
         if isinstance(self.connection, (type(u'a') , type('a'))):
@@ -153,77 +162,108 @@ class baresql(object):
             self.tmp_tables = []
             
 
-    def get_token(self, sql, start = 0):
-        "for given sql start position, give token type and next token start"
-        length = len(sql) ; 
-        i = start ; token = 'TK_OTHER'
-        dico = {' ':'TK_SP', '\t':'TK_SP', '\n':'TK_SP', '\f':'TK_SP',
-         '\r':'TK_SP', '(':'TK_LP', ')':'TK_RP', ';':'TK_SEMI', ',':'TK_COMMA',
-         '/':'TK_OTHER', "'":'TK_STRING',"-":'TK_OTHER', 
-         '"':'TK_STRING', "`":'TK_STRING'}
-        if length > start:
-            if sql[i] == "-" and i < length and sql[i:i+2] == "--" :
-                #this Token is an end-of-line comment : --blabla
-                token='TK_COM'
-                i = sql.find("\n", start)  
-                if i <= 0: i = length  
+    def get_tokens(self, sql, start=0, shell_tokens=False):
+        """
+        from given sql start position, yield tokens (value + token type)
+        if shell_tokens is True, identify line shell_tokens as sqlite.exe does
+        """
+        length = len(sql)
+        i = start
+        can_be_shell_command = True
+        dico = {' ': 'TK_SP', '\t': 'TK_SP', '\n': 'TK_SP', '\f': 'TK_SP',
+                '\r': 'TK_SP', '(': 'TK_LP', ')': 'TK_RP', ';': 'TK_SEMI',
+                ',': 'TK_COMMA', '/': 'TK_OTHER', "'": 'TK_STRING',
+                "-": 'TK_OTHER', '"': 'TK_STRING', "`": 'TK_STRING'}
+        while length > start:
+            token = 'TK_OTHER'
+            if shell_tokens and can_be_shell_command and i < length and (
+               (sql[i] == "." and i == start) or
+               (i > start and sql[i-1:i] == "\n.")):
+                # a command line shell ! (supposed on one starting line)
+                token = 'TK_SHELL'
+                i = sql.find("\n", start)
+                if i <= 0:
+                    i = length
+            elif sql[i] == "-" and i < length and sql[i:i+2] == "--":
+                # this Token is an end-of-line comment : --blabla
+                token = 'TK_COM'
+                i = sql.find("\n", start)
+                if i <= 0:
+                    i = length
             elif sql[i] == "/" and i < length and sql[i:i+2] == "/*":
-                #this Token is a comment block : /* and bla bla \n bla */
-                token='TK_COM'
-                i = sql.find("*/",start)+2  
-                if i <= 1:  i = length
-            elif sql[i] not in dico : 
-                #this token is a distinct word (tagged as 'TK_OTHER') 
-                while i < length and sql[i] not in dico: i += 1
-                #For Trigger creation, we need to detect BEGIN END 
-                if  sql[start:i].upper()=='BEGIN' : token = 'TK_BEG'
-                elif sql[start:i].upper()=='END' : token = 'TK_END'
+                # this Token is a comment block : /* and bla bla \n bla */
+                token = 'TK_COM'
+                i = sql.find("*/", start) + 2
+                if i <= 1:
+                    i = length
+            elif sql[i] not in dico:
+                # this token is a distinct word (tagged as 'TK_OTHER')
+                while i < length and sql[i] not in dico:
+                    i += 1
             else:
-                #default token analyze case
+                # default token analyze case
                 token = dico[sql[i]]
-                if token == 'TK_SP':  
-                    #Find the end of the 'Spaces' Token just detected  
-                    while (i < length and sql[i] in dico and 
-                      dico[sql[i]] == 'TK_SP'):  i += 1
-                elif token == 'TK_STRING':  
-                    #Find the end of the 'String' Token just detected  
+                if token == 'TK_SP':
+                    # find the end of the 'Spaces' Token just detected
+                    while (i < length and sql[i] in dico and
+                            dico[sql[i]] == 'TK_SP'):
+                                i += 1
+                elif token == 'TK_STRING':
+                    # find the end of the 'String' Token just detected
                     delimiter = sql[i]
-                    if delimiter != "'": token = 'TK_ID' #usefull nuance ?
-                    while (i < length  ):
-                        i = sql.find(delimiter , i+1)
-                        if i <= 0: # String is never closed
+                    if delimiter != "'":
+                        token = 'TK_ID'  # usefull nuance ?
+                    while(i < length):
+                        i = sql.find(delimiter, i+1)
+                        if i <= 0:  # String is never closed
                             i = length
                             token = 'TK_ERROR'
-                        elif i < length -1 and sql[i+1] == delimiter :
-                            i += 1   # double '' case, so ignore and continue
-                        else: 
+                        elif i < length - 1 and sql[i+1] == delimiter:
+                            i += 1  # double '' case, so ignore and continue
+                        else:
                             i += 1
-                            break #normal End of a  String 
-                else: 
-                    if i < length : i += 1
-        return i, token
+                            break  # normal End of a  String
+                else:
+                    if i < length:
+                        i += 1
+            yield sql[start:i], token
+            if token == 'TK_SEMI':  # a new sql order can be a new shell token
+                can_be_shell_command = True
+            elif token not in ('TK_COM', 'TK_SP'):  # can't be a shell token
+                can_be_shell_command = False
+            start = i
 
 
     def get_sqlsplit(self, sql, remove_comments=False):
-        """split an sql file in list of separated sql orders"""
-        beg = end = 0; length = len(sql) ; translvl = 0
-        sqls = []
-        while end < length-1:
-            tk_end , token = self.get_token(sql,end)
-            if token == 'TK_BEG' : translvl += 1
-            elif token == 'TK_END' : translvl -= 1
-            elif (token == 'TK_SEMI' and translvl==0) or tk_end == length: 
+        """yield a list of separated sql orders from a sql file"""
+        trigger_mode = False
+        mysql = [""]
+        for tokv, token in self.get_tokens(sql, shell_tokens=True):
+            # clear comments option
+            if token != 'TK_COM' or not remove_comments:
+                mysql.append(tokv)
+            # special case for Trigger : semicolumn don't count
+            if token == 'TK_OTHER':
+                tok = tokv.upper()
+                if tok == "TRIGGER":
+                    trigger_mode = True
+                    translvl = 0
+                elif trigger_mode and tok in('BEGIN', 'CASE'):
+                    translvl += 1
+                elif trigger_mode and tok == 'END':
+                    translvl -= 1
+                    if translvl <= 0:
+                        trigger_mode = False
+            elif (token == 'TK_SEMI' and not trigger_mode):
                 # end of a single sql
-                sqls.append(sql[beg:tk_end])
-                beg = tk_end
-            elif token == 'TK_COM' and remove_comments: # clear comments option
-                sql = sql[:end]+' '+ sql[tk_end:]
-                length = len(sql)
-                tk_end = end + 1
-            end = tk_end
-        if beg < length :
-               sqls.append(sql[beg:])
-        return sqls
+                yield "".join(mysql)
+                mysql = []
+            elif (token == 'TK_SHELL'):
+                # end of a shell order
+                yield("" + tokv)
+                mysql = []
+        if mysql != []:
+            yield("".join(mysql))
         
              
     def _execute_sql(self, q_in ,  env = None):
@@ -360,7 +400,7 @@ class baresql(object):
 
         #initial cleanup 
         self.remove_tmp_tables # remove temp objects created for previous sql
-        sql = "".join(self.get_sqlsplit(q, True)) #remove comments from the sql 
+        sql = "".join(self.get_sqlsplit(q, remove_comments=True)) # no comments
         
         #importation of needed Python tables into SQL
         names_env = {} #ensure we use a dictionnary
@@ -379,15 +419,16 @@ class baresql(object):
             cur = self._execute_sql (pre_q)
             self._write_table( table_sql, df, self.conn)
         #multiple sql must be executed one by one
-        for q_single in self.get_sqlsplit(sql, True) :
+        for q_single in self.get_sqlsplit(sql, remove_comments=True) :
             # inserting pydef from sqlite_bro
             instru = q_single.replace(";", "").strip(' \t\n\r')
             # for the show: first_line = (instru + "\n").splitlines()[0]
             if instru[:5] == "pydef":
                 pydef = self.createpydef(instru)
+            elif instru[:1] == ".":  # a shell command !
+                # handle a ".function" here !
+                shell_list = shlex.split(instru)  # magic standard library
             elif q_single.strip() != "":
-                #cleanup previous CTE temp tables before executing another sql
-                self.remove_tmp_tables("cte")
                 cur = self._execute_cte(q_single,  env)
         return cur
 
