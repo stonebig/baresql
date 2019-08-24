@@ -52,7 +52,6 @@ class baresql(object):
 
     Complementary features :
      - multiple sql actions can be executed in the same request,
-     - a basic 'Common Table Expression' converter is included,
      - mixing sql tables and python tables in a sql request.
 
     Example :
@@ -84,18 +83,17 @@ class baresql(object):
        Copyright 2011-2012, Lambda Foundry, Inc. and PyData Development Team)
     """
 
-    def __init__(self, connection="sqlite://", keep_log = False, 
-                 cte_inline = True):
+    def __init__(self, connection="sqlite://", keep_log = False, cte_inline=True,
+                 isolation_level=None):
         """
         conn = connection string  , or connexion object if mysql
           example :
             "sqlite://" = sqlite in memory
             "sqlite:///.baresql.db" = sqlite on disk database ".baresql.db"
         keep_log = keep log of SQL instructions generated
-        cte_inline = inline CTE for SQLite instead of creating temporary views
         """
-        self.__version__ = '0.7.5'
-        self._title = "2018-08-23a : 'Pydef works like in sqlite_bro'"
+        self.__version__ = '0.7.6dev1'
+        self._title = "2018-08-24 : 'remove pseudo-cte trick'"
         #identify sql engine and database
         self.connection = connection
         if isinstance(self.connection, (type(u'a') , type('a'))):
@@ -117,11 +115,6 @@ class baresql(object):
 
         self.tmp_tables = []
 
-        #SQLite CTE translation infrastructure
-        self.cte_inline = cte_inline
-        self.cte_views = []
-        self.cte_tables = []
-
         #pydef memory
         self.conn_def = {}
         
@@ -130,11 +123,9 @@ class baresql(object):
         self.log = []
 
         #check if need cte_helper
-        self.cte_helper = False
         self.delimiters=['[',']']
         
-        if  self.engine == "mysql": #chock : mysql doesn't support C.T.E !
-            self.cte_helper = True
+        if  self.engine == "mysql":
             self.delimiters=['`','`']
             #http://stackoverflow.com/questions/17053435/mysql-connector-python-insert-python-variable-to-mysql-table
             try:
@@ -146,8 +137,6 @@ class baresql(object):
             version = cur.fetchall()[0][0]
             cur.close
             normalized=".".join( [("000"+i)[-3:] for i in version.split("." )]) 
-            if normalized<"003.008.003":
-                self.cte_helper = True
 
     def close(self):
         "proper closing"
@@ -163,16 +152,6 @@ class baresql(object):
                                         table.join(self.delimiters))
             self.tmp_tables = []
             
-        if origin in("all", "cte"):
-            for view in self.cte_views:
-                cur = self._execute_sql("DROP VIEW IF EXISTS %s" %
-                                        view.join(self.delimiters))
-            self.cte_views = []
-            for table in self.cte_tables:
-                cur = self._execute_sql("DROP table IF EXISTS %s" %
-                                        table.join(self.delimiters))
-            self.cte_tables = []
-
 
     def get_token(self, sql, start = 0):
         "for given sql start position, give token type and next token start"
@@ -260,125 +239,14 @@ class baresql(object):
         return execute(q_in ,self.conn, params = env_final)
 
 
-    def _split_sql_cte(self, sql, cte_inline = True):
-        """
-        split a cte sql in several non-cte sqls
-        feed cte_views + cte_tables list for post-execution clean-up
-        if cte_inline = True, inline the CTE views instead of creating them
-        """
-        beg = end = 0; length = len(sql)
-        is_with = False
-        status = "normal"
-        sqls = []
-        level = 0 ;from_lvl={0:False} ; last_other=""
-        cte_dico = {} #dictionnary created from CTE definitions 
-        while end < length:
-            tk_end , token = self.get_token(sql,end)
-            tk_value = sql[end:tk_end]
-            if ((status == "normal" and level == 0 and token =="TK_OTHER" and
-            tk_value.lower() == "with") 
-            or (token == 'TK_COMMA' and status == "cte_next")):
-                status = "cte_start"; v_full=""
-                is_with = True #cte_launcher
-            elif status == "cte_next"  and token=="TK_OTHER":
-                status = "normal"; beg = end
-            elif status == "cte_start"  and token=="TK_OTHER":
-                status = "cte_name"
-                v_name = tk_value ; beg=end #new beginning of sql
-            elif status == "cte_name"  and level == 0 and token=="TK_OTHER":
-                if tk_value.lower() == "as": 
-                    status = "cte_select"
-                else:
-                    cte_table = tk_value
-            elif token=='TK_LP':
-                    level += 1 ;from_lvl[level] = False
-                    if level == 1 :
-                        cte_lp = end #for later removal, if a cte expression
-            elif token == 'TK_RP':
-                level -= 1
-                if level == 0:
-                    if status == "cte_name":
-                        v_full = sql[beg:tk_end]
-                    elif status == "cte_select":
-                        beg = cte_rp = end
-                        status = "cte_next"
-                        #end of a cte, let's transform the raw_sql
-                        #get name of the cte view/table
-                        if v_full != "":
-                            #if "with X(...) as", we do create table +insert
-                            sqls.append("DROP TABLE IF EXISTS %s;\n" %
-                                        v_name.join(self.delimiters))
-                            sqls.append("create temp table %s;\n" %
-                                        v_full.join(self.delimiters))
-                            #insert the cte in that table
-                            sqls.append("insert into  %s %s;\n" %
-                                        (v_name.join(self.delimiters)
-                                        ,  sql[cte_lp + 1:cte_rp]))
-                            #mark the cte table for future deletion
-                            self.cte_tables.insert (0 , v_name)
-                        else:
-                             if not cte_inline: #for "with X as (", create view
-                                 sqls.append("DROP VIEW IF EXISTS %s;\n"
-                                      % v_name.join(self.delimiters))
-                                 #add the cte as a view
-                                 sqls.append("create temp view %s as %s;\n" % (
-                                      v_name.join(self.delimiters) , sql[cte_lp + 1:cte_rp]))
-                                 #mark the cte view for future deletion
-                                 self.cte_views.insert (0 , v_name)
-                             else: #for "with X as (", create a dictionnary
-                                 cte_dico[v_name]=sql[cte_lp + 1:cte_rp]
-
-            elif token == "TK_OTHER" and cte_inline: 
-                if tk_value.lower() == "from":
-                    from_lvl[level] = True
-                elif from_lvl[level]:
-                    if last_other in(',', 'from', 'join') and (
-                    tk_value in cte_dico):
-                        #check if next token is as
-                        bg , en , tknext = tk_end , tk_end , 'TK_SP'
-                        while en < length and tknext == 'TK_SP' :
-                            bg, (en , tknext) = en, self.get_token(sql , en)
-                        #avoid the "as x as y" situation
-                        if sql[bg:en].lower() != 'as': 
-                            sql2 = (sql[:end ] + "("+ cte_dico[tk_value] + 
-                              ") as " + tk_value + " ")
-                        else:
-                            sql2 = (sql[:end ] + "("+ cte_dico[tk_value] + 
-                              ")  " + " ")
-                        
-                        tk_end , sql = len(sql2)   ,  sql2 + sql[tk_end:]
-                        length = len(sql)                        
-
-            if token == 'TK_SEMI' or tk_end == len(sql): #a non-cte sql
-                sqls.append(sql[beg:tk_end])
-                beg = tk_end
-                level = 0
-                status="normal"
-                cte_dico = {}
-            # continue while loop            
-            end = tk_end
-            if token != "TK_SP":
-                last_other = tk_value.lower()
-        return sqls
-
-
     def _execute_cte(self, q_in,  env):
         """transform Common Table Expression SQL into acceptable SQLite SQLs
            with w    as (y) z => create w as y;z
            with w(x) as (y) z => create w(x);insert into w y;z
         """
         q_raw = q_in.strip()
-        if  self.cte_helper == False or q_raw[:4].lower()!="with":  
-            #normal execute
-            return self._execute_sql(q_raw,env)
-        else:
-            #transform the CTE into SQlite acceptable sql instructions
-            q_final_list = self._split_sql_cte(sql_in, self.cte_inline) 
-            #multiple sql must be executed one by one
-            for q_single in q_final_list:
-                if q_single.strip() != "":
-                    cur = self._execute_sql(q_single,env)
-            return cur
+        #normal execute
+        return self._execute_sql(q_raw,env)
 
 
     def _ensure_data_frame(self, obj, name):
