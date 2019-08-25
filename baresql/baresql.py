@@ -46,12 +46,13 @@ class baresql(object):
     baresql allows you to query in sql any of your python datas.
     
     In the sql :
-     - use 'table$$' to refer to a  python 'table',
-     - use 'table$$.c0' ..'table$$.cN' to access column0..N of 'tables$$'
+     - use 'table$$' to temporary upload a  python 'table',
      - use ':variable' to refer to a  python 'variable',
           ('%(variable)s' if you employ mysql)
+     - use 'PERSIST table' to upload and keep given Python table
 
-    Typical syntax : "select * from users$$ where users$$.c0 <= :limit" 
+    Typical syntax : "select * from users$$ where c0 <= :limit"
+                  or "persist users;select * from users where c0 <= :limit" 
 
     Output of a query can be obtained as :
      - a pandas dataframe (bsql.df)
@@ -92,7 +93,7 @@ class baresql(object):
        Copyright 2011-2012, Lambda Foundry, Inc. and PyData Development Team)
     """
 
-    def __init__(self, connection="sqlite://", keep_log = False, cte_inline=True,
+    def __init__(self, connection="sqlite://", keep_log = False, cte_inline=False,
                  isolation_level=None):
         """
         conn = connection string  , or connexion object if mysql
@@ -101,8 +102,8 @@ class baresql(object):
             "sqlite:///.baresql.db" = sqlite on disk database ".baresql.db"
         keep_log = keep log of SQL instructions generated
         """
-        self.__version__ = '0.7.6dev3'
-        self._title = "2018-08-24 : 'remove pseudo-cte, tokens like sqlite_bro'"
+        self.__version__ = '0.7.6'
+        self._title = "2018-08-25 : 'PERSIST like IPYTHON-SQL, drop $$ in table name'"
         #identify sql engine and database
         self.connection = connection
         if isinstance(self.connection, (type(u'a') , type('a'))):
@@ -340,12 +341,16 @@ class baresql(object):
              - "select * from x$$" may return ['a', 'b']
         """
         tables = set()
-        for query in q.split("$$"):
+        q_out = ""
+        for query in (q+" -- ").split("$$"):
             table_candidate = query.split(' ')[-1] 
             if table_candidate in env:
                tables.add(table_candidate)
+               q_out += query
+            else:
+                q_out += query+"$$"
         self.tmp_tables = list(set(tables))
-        return self.tmp_tables
+        return self.tmp_tables , q_out[:-6]
 
 
     def _write_table(self, tablename, df, conn):
@@ -408,10 +413,9 @@ class baresql(object):
             names_env = env
         elif isinstance(env, (list,tuple)) and len(env)>0 and isinstance(env[-1], dict):
             names_env = env[-1]
-        tables = self._extract_table_names(sql, names_env)
-        
+        tables, sql = self._extract_table_names(sql, names_env)
         for table_ref in tables:
-            table_sql = table_ref+"$$"
+            table_sql = table_ref+"" # drop the "$$"
             df = names_env[table_ref]
             df = self._ensure_data_frame(df, table_ref)
             #destroy previous Python temp table before importing the new one
@@ -425,9 +429,19 @@ class baresql(object):
             # for the show: first_line = (instru + "\n").splitlines()[0]
             if instru[:5] == "pydef":
                 pydef = self.createpydef(instru)
+                cur=self._execute_cte("",  env)  # avoid a bad message
+            elif (instru[:8]).upper() == "PERSIST ":  # upload à la IPYTHON-SQL
+                shell_list = shlex.split(instru.replace(',',' '))  # magic standard library
+                for table_ref in shell_list[1:]:
+                    #destroy previous Python temp table before importing the new one
+                    pre_q = "DROP TABLE IF EXISTS %s" % table_ref.join(self.delimiters)
+                    cur = self._execute_sql (pre_q)
+                    df = names_env[table_ref]
+                    df = self._ensure_data_frame(df, table_ref)
+                    self._write_table( table_ref, df, self.conn)
             elif instru[:1] == ".":  # a shell command !
                 # handle a ".function" here !
-                shell_list = shlex.split(instru)  # magic standard library
+                table_ref = shlex.split(instru)  # magic standard library
             elif q_single.strip() != "":
                 cur = self._execute_cte(q_single,  env)
         return cur
