@@ -1,0 +1,248 @@
+class baresql(object):
+
+ def __init__(self, connection="sqlite://", isolation_level=None):
+
+  self.connection = connection
+  self.conn = sqlite.connect(":memory:",  detect_types = sqlite.PARSE_DECLTYPES)
+
+  self.tmp_tables, self.conn_def, self.delimiters = [] , {}, ['[',']']
+
+ def close(self):
+  self.remove_tmp_tables
+  self.conn.close
+ 
+ def remove_tmp_tables(self, origin="all"):
+  if origin in ("all", "tmp"):
+   for table in self.tmp_tables:
+    cur = self._execute_sql("DROP TABLE IF EXISTS %s" % table.join(self.delimiters))
+   self.tmp_tables = []
+   
+ def get_tokens(self, sql, start=0, shell_tokens=False):
+    length = len(sql)
+    i = start
+    can_be_shell_command = True
+    dico = {' ': 'TK_SP', '\t': 'TK_SP', '\n': 'TK_SP', '\f': 'TK_SP',
+        '\r': 'TK_SP', '(': 'TK_LP', ')': 'TK_RP', ';': 'TK_SEMI',
+        ',': 'TK_COMMA', '/': 'TK_OTHER', "'": 'TK_STRING',
+        "-": 'TK_OTHER', '"': 'TK_STRING', "`": 'TK_STRING'}
+    while length > start:
+      token = 'TK_OTHER'
+      if shell_tokens and can_be_shell_command and i < length and (
+         (sql[i] == "." and i == start) or
+         (i > start and sql[i-1:i] == "\n.")):
+        token = 'TK_SHELL'
+        i = sql.find("\n", start)
+        if i <= 0:
+          i = length
+      elif sql[i] == "-" and i < length and sql[i:i+2] == "--":
+        token = 'TK_COM'
+        i = sql.find("\n", start)
+        if i <= 0:
+          i = length
+      elif sql[i] == "/" and i < length and sql[i:i+2] == "/*":
+        token = 'TK_COM'
+        i = sql.find("*/", start) + 2
+        if i <= 1:
+          i = length
+      elif sql[i] not in dico:
+        while i < length and sql[i] not in dico:
+          i += 1
+      else:
+        token = dico[sql[i]]
+        if token == 'TK_SP':
+          while (i < length and sql[i] in dico and
+              dico[sql[i]] == 'TK_SP'):
+                i += 1
+        elif token == 'TK_STRING':
+          delimiter = sql[i]
+          if delimiter != "'":
+            token = 'TK_ID'  
+          while(i < length):
+            i = sql.find(delimiter, i+1)
+            if i <= 0:  
+              i = length
+              token = 'TK_ERROR'
+            elif i < length - 1 and sql[i+1] == delimiter:
+              i += 1  
+            else:
+              i += 1
+              break 
+        else:
+          if i < length:
+            i += 1
+      yield sql[start:i], token
+      if token == 'TK_SEMI':  
+        can_be_shell_command = True
+      elif token not in ('TK_COM', 'TK_SP'): 
+        can_be_shell_command = False
+      start = i
+
+ def get_sqlsplit(self, sql, remove_comments=False):
+  trigger_mode, mysql = False, [""]
+  for tokv, token in self.get_tokens(sql, shell_tokens=True):
+    if token != 'TK_COM' or not remove_comments:
+      mysql.append(tokv)
+    if token == 'TK_OTHER':
+      tok = tokv.upper()
+      if tok == "TRIGGER":
+        trigger_mode = True
+        translvl = 0
+      elif trigger_mode and tok in('BEGIN', 'CASE'):
+        translvl += 1
+      elif trigger_mode and tok == 'END':
+        translvl -= 1
+        if translvl <= 0:
+          trigger_mode = False
+    elif (token == 'TK_SEMI' and not trigger_mode):
+      yield "".join(mysql)
+      mysql = []
+    elif (token == 'TK_SHELL'):
+      yield("" + tokv)
+      mysql = []
+  if mysql != []:
+    yield("".join(mysql))
+  
+ def _execute_sql(self, q_in ,  env = None):
+    env_final = env
+    if isinstance(env, (list,tuple)) and len(env)>0 and isinstance(env[-1], dict):
+      env_final = env[:-1]
+    return execute(q_in ,self.conn, params = env_final)
+
+
+ def _execute_cte(self, q_in,  env):
+
+    q_raw = q_in.strip()
+    return self._execute_sql(q_raw,env)
+
+
+ def _ensure_data_frame(self, obj, name):
+
+    if isinstance(obj, pd.DataFrame):
+      df = obj
+    elif isinstance(obj, (tuple, list, range)) :
+      if len(obj) == 0:
+        return pd.Dataframe()
+
+      firstrow = obj[0]
+
+      if isinstance(firstrow, (tuple, list)):
+        colnames = ["c%d" % i for i in range(len(firstrow))]
+        df = pd.DataFrame(obj, columns=colnames)
+      else:
+        df = pd.DataFrame(list(obj), columns = ["c0"])
+    elif isinstance(obj, dict) :
+      df = pd.DataFrame([(k,v) for k, v in obj.items()],
+                 columns = ["c0","c1"])
+    elif isinstance(obj, (type('a'),type(u'a'))) or isinstance(obj, numbers.Number) : 
+      df = pd.DataFrame([obj,], columns = ["c0"])
+
+    if not isinstance(df, pd.DataFrame) :
+      raise Exception("%s is no Dataframe/Tuple/List/Dictionary" % name)
+
+    for col in df:
+      if df[col].dtype == np.int64:
+        df[col] = df[col].astype(np.float64)
+
+    return df
+
+
+ def _extract_table_names(self, q, env):
+
+    tables = set()
+    q_out = ""
+    for query in (q+" -- ").split("$$"):
+      table_candidate = query.split(' ')[-1] 
+      if table_candidate in env:
+         tables.add(table_candidate)
+         q_out += query
+      else:
+        q_out += query+"$$"
+    self.tmp_tables = list(set(tables))
+    return self.tmp_tables , q_out[:-6]
+
+
+ def _write_table(self, tablename, df, conn):
+    for col in df.columns:
+      if re.search("[()]", col):
+        raise Exception("SQLite column naming")
+ 
+    if LooseVersion(pd.__version__) < LooseVersion("0.18.9"):
+      to_sql(df, name = tablename, con = self.conn,  flavor = self.engine)
+    else:
+      to_sql(df, name = tablename, con = self.conn)
+
+ def createpydef(self, sql):
+    instruction = sql.strip('; \t\n\r')
+    exec(instruction[2:], globals(), locals())
+    firstline = (instruction[5:].splitlines()[0]).lstrip()
+    firstline = firstline.replace(" ", "") + "("
+    instr_name = firstline.split("(", 1)[0].strip()
+    instr_parms = firstline.count(',')+1
+    instr_add = (("self.conn.create_function('%s', %s, %s)" % (
+            instr_name, instr_parms, instr_name)))
+    exec(instr_add, globals(), locals())
+    the_help = dict(globals(), **locals())[instr_name].__doc__
+    self.conn_def[instr_name] = {
+      'parameters': instr_parms, 'inst': instr_add,
+      'help': the_help, 'pydef': instruction}
+    return instr_name
+  
+ def cursor(self, q, env):
+
+    self.remove_tmp_tables 
+    sql = "".join(self.get_sqlsplit(q, remove_comments=True)) 
+    
+    names_env = {}
+    if isinstance(env, dict):
+      names_env = env
+    elif isinstance(env, (list,tuple)) and len(env)>0 and isinstance(env[-1], dict):
+      names_env = env[-1]
+    tables, sql = self._extract_table_names(sql, names_env)
+    for table_ref in tables:
+      table_sql = table_ref+"" 
+      df = names_env[table_ref]
+      df = self._ensure_data_frame(df, table_ref)
+      pre_q = "DROP TABLE IF EXISTS %s" % table_sql.join(self.delimiters)
+      cur = self._execute_sql (pre_q)
+      self._write_table( table_sql, df, self.conn)
+    for q_single in self.get_sqlsplit(sql, remove_comments=True) :
+      instru = q_single.replace(";", "").strip(' \t\n\r')
+      if instru[:5] == "pydef":
+        pydef = self.createpydef(instru)
+        cur=self._execute_cte("",  env)  
+      elif (instru[:8]).upper() == "PERSIST ":  
+        shell_list = shlex.split(instru.replace(',',' ')) 
+        for table_ref in shell_list[1:]:
+          pre_q = "DROP TABLE IF EXISTS %s" % table_ref.join(self.delimiters)
+          cur = self._execute_sql (pre_q)
+          df = names_env[table_ref]
+          df = self._ensure_data_frame(df, table_ref)
+          self._write_table( table_ref, df, self.conn)
+      elif instru[:1] == ".": 
+        table_ref = shlex.split(instru) 
+      elif q_single.strip() != "":
+        cur = self._execute_cte(q_single,  env)
+    return cur
+
+ def rows(self, q, env):
+    result = self.cursor( q, env).fetchall()
+    self.remove_tmp_tables()
+    return result
+
+ def column(self, q, env, column=0):
+    result = [x[column] for x in self.cursor( q, env).fetchall()]
+    self.remove_tmp_tables()
+    return result
+
+ def df(self, q, env):
+    cur = self.cursor( q, env)
+    result = None
+    rows = cur.fetchall()
+    if not isinstance(rows, list):
+      rows = list(rows)
+    if cur.description is not None: 
+      columns = [col_desc[0] for col_desc in cur.description]
+      result = pd.DataFrame(rows, columns=columns)
+    self.remove_tmp_tables()
+    return result
+    

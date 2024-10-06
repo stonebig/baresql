@@ -102,8 +102,8 @@ class baresql(object):
             "sqlite:///.baresql.db" = sqlite on disk database ".baresql.db"
         keep_log = keep log of SQL instructions generated
         """
-        self.__version__ = '0.7.6'
-        self._title = "2018-08-25 : 'PERSIST like IPYTHON-SQL, drop $$ in table name'"
+        self.__version__ = '0.8.0'
+        self._title = "2023-05-20 : 'np.float becomes float'"
         #identify sql engine and database
         self.connection = connection
         if isinstance(self.connection, (type(u'a') , type('a'))):
@@ -326,7 +326,7 @@ class baresql(object):
 
         for col in df:
             if df[col].dtype == np.int64:
-                df[col] = df[col].astype(np.float)
+                df[col] = df[col].astype(float)
 
         return df
 
