@@ -1,25 +1,17 @@
 # -*- coding: utf-8 -*-
-from __future__ import print_function, unicode_literals, division # Python2.7
-import re
-import numbers
+import re, numbers
 import sqlite3 as sqlite
-import sys
-import os
-import locale
-import csv
-import datetime
-import io
-import codecs
-import shlex  # Simple lexical analysis
-
+import sys, locale, csv
+import datetime, shlex
 import numpy as np
+import warnings
+warnings.filterwarnings("ignore", category=DeprecationWarning)
 import pandas as pd
-from distutils.version import LooseVersion, StrictVersion
-try:
-    from pandas.io.sql import to_sql, execute
-except: #pandas older version
-    from pandas.io.sql import write_frame, execute
-    to_sql = write_frame 
+from pandas.io.sql import to_sql
+
+#2024-10-19 pandas.io.sql deprecated
+#from pandas.io.sql import execute
+
 #see http://stackoverflow.com/questions/17053435/mysql-connector-python-insert-python-variable-to-mysql-table
 try:
     import mysql.connector
@@ -102,9 +94,10 @@ class baresql(object):
             "sqlite:///.baresql.db" = sqlite on disk database ".baresql.db"
         keep_log = keep log of SQL instructions generated
         """
-        self.__version__ = '0.8.0'
-        self._title = "2023-05-20 : 'np.float becomes float'"
+        self.__version__ = '0.9.0'
+        self._title = "2024-10-21 : 'fixes from baresql'"
         #identify sql engine and database
+        self.pydef_locals = {}
         self.connection = connection
         if isinstance(self.connection, (type(u'a') , type('a'))):
            self.engine = connection.split("://")[0]
@@ -142,11 +135,9 @@ class baresql(object):
                 self.conn.set_converter_class(NumpyMySQLConverter)
             except:
                 pass
-        if  self.engine == "sqlite":
-            cur=execute("select  sqlite_version()" ,self.conn)
-            version = cur.fetchall()[0][0]
-            cur.close
-            normalized=".".join( [("000"+i)[-3:] for i in version.split("." )]) 
+
+        self.cur = self.conn.cursor()
+
 
     def close(self):
         "proper closing"
@@ -158,8 +149,7 @@ class baresql(object):
         "remove temporarly created tables"
         if origin in ("all", "tmp"):
             for table in self.tmp_tables:
-                cur = self._execute_sql("DROP TABLE IF EXISTS %s" %
-                                        table.join(self.delimiters))
+                cur = self._execute_sql(f"DROP TABLE IF EXISTS {table.join(self.delimiters)}")
             self.tmp_tables = []
             
 
@@ -272,13 +262,20 @@ class baresql(object):
         if self.do_log:
             self.log.append(q_in)
         env_final = env
-        if isinstance(env, (list,tuple)) and len(env)>0 and isinstance(env[-1], dict):
-            env_final = env[:-1] #remove last dict(), if parameters list
-        if self.engine=="mysql" and isinstance(env, dict):
-            #we must clean from what is not used
-            env_final={k:v for k,v in env_final.items() if "%("+k+")s" in q_in}
-        return execute(q_in ,self.conn, params = env_final)
-
+        if isinstance(env, (dict,)) and len(env)>0:
+            sql= q_in
+            # API v2 not friendly anymore we have to do it ourselves
+            changed = re.findall(r'\$\w+|\'\$\w+\'',sql)
+            for i in changed:
+                if i[-1]=="'" and (by_what:=env.get(i[2:-1], False)):
+                    sql = sql.replace(i , "'"+ (f'{by_what}').replace("'","''") +"'")
+                elif by_what:=env.get(i[1:], False):
+                    sql = sql.replace(i , f'{by_what}'.replace(',','.'))
+            if self.engine=="mysql" and isinstance(env, dict):
+                #we must clean from what is not used
+                env_final={k:v for k,v in env_final.items() if "%("+k+")s" in q_in}
+                return execute(q_in ,self.conn, params = env_final)
+            return self.cur.execute(sql)
 
     def _execute_cte(self, q_in,  env):
         """transform Common Table Expression SQL into acceptable SQLite SQLs
@@ -308,7 +305,7 @@ class baresql(object):
 
             if isinstance(firstrow, (tuple, list)):
                 #multiple-columns
-                colnames = ["c%d" % i for i in range(len(firstrow))]
+                colnames = [f"c{i}" for i in range(len(firstrow))]
                 df = pd.DataFrame(obj, columns=colnames)
             else:
                 #mono-column
@@ -322,7 +319,7 @@ class baresql(object):
             df = pd.DataFrame([obj,], columns = ["c0"])
 
         if not isinstance(df, pd.DataFrame) :
-            raise Exception("%s is no Dataframe/Tuple/List/Dictionary" % name)
+            raise Exception(f"{name} is not a Dataframe")
 
         for col in df:
             if df[col].dtype == np.int64:
@@ -366,27 +363,25 @@ class baresql(object):
             self.log.append("(pandas) INSERT INTO  %s  VALUES (%s)"
                  % (tablename , cards))        
         # pandas 0.19 doesn't want it anymore
-        if LooseVersion(pd.__version__) < LooseVersion("0.18.9"):
-            to_sql(df, name = tablename, con = self.conn,  flavor = self.engine)
-        else:
-            to_sql(df, name = tablename, con = self.conn)
+        to_sql(df, name = tablename, con = self.conn)
 
     def createpydef(self, sql):
         """generates and register a pydef instruction"""
         instruction = sql.strip('; \t\n\r')
         # create Python function in Python
         print("***",instruction[2:],"***")
-        exec(instruction[2:], globals(), locals())
+        exec(instruction[2:], globals(), self.pydef_locals)
         # add Python function in SQLite
-        firstline = (instruction[5:].splitlines()[0]).lstrip()
-        firstline = firstline.replace(" ", "") + "("
-        instr_name = firstline.split("(", 1)[0].strip()
-        instr_parms = firstline.count(',')+1
-        instr_add = (("self.conn.create_function('%s', %s, %s)" % (
-                      instr_name, instr_parms, instr_name)))
-        exec(instr_add, globals(), locals())
+        instr_header = re.findall(r"\w+", instruction[: (instruction + ")").find(")")])
+        instr_name = instr_header[1]
+        instr_parms = len(instr_header) - 2
+        instr_pointer=eval(instr_name, globals(), self.pydef_locals)
+        self.conn.create_function(instr_name, instr_parms, instr_pointer)
+
+        instr_add = (f"self.conn.create_function('{instr_name}', {instr_parms}, {instr_name})")
+
         # housekeeping definition of pydef in a dictionnary
-        the_help = dict(globals(), **locals())[instr_name].__doc__
+        the_help = self.pydef_locals[instr_name].__doc__
         self.conn_def[instr_name] = {
             'parameters': instr_parms, 'inst': instr_add,
             'help': the_help, 'pydef': instruction}

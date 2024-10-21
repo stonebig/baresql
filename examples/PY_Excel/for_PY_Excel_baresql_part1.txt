@@ -1,8 +1,13 @@
+# baresql init
 import re, numbers
 import sqlite3 as sqlite
 import sys, locale, csv
 import datetime, shlex
 import numpy as np
+import warnings
+warnings.filterwarnings("ignore", category=DeprecationWarning)
 import pandas as pd
-from pandas.io.sql import to_sql, execute
-from distutils.version import LooseVersion, StrictVersion
+from pandas.io.sql import to_sql
+
+#2024-10-19 pandas.io.sql deprecated
+#from pandas.io.sql import execute

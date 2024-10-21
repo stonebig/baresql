@@ -1,9 +1,10 @@
 class baresql(object):
 
  def __init__(self, connection="sqlite://", isolation_level=None):
-
+  self.pydef_locals ={}
   self.connection = connection
   self.conn = sqlite.connect(":memory:",  detect_types = sqlite.PARSE_DECLTYPES)
+  self.cur = self.conn.cursor()
 
   self.tmp_tables, self.conn_def, self.delimiters = [] , {}, ['[',']']
 
@@ -14,7 +15,7 @@ class baresql(object):
  def remove_tmp_tables(self, origin="all"):
   if origin in ("all", "tmp"):
    for table in self.tmp_tables:
-    cur = self._execute_sql("DROP TABLE IF EXISTS %s" % table.join(self.delimiters))
+    cur = self._execute_sql(f"DROP TABLE IF EXISTS {table.join(self.delimiters)}")
    self.tmp_tables = []
    
  def get_tokens(self, sql, start=0, shell_tokens=False):
@@ -104,16 +105,20 @@ class baresql(object):
   
  def _execute_sql(self, q_in ,  env = None):
     env_final = env
-    if isinstance(env, (list,tuple)) and len(env)>0 and isinstance(env[-1], dict):
-      env_final = env[:-1]
-    return execute(q_in ,self.conn, params = env_final)
-
+    if isinstance(env, (dict,)) and len(env)>0:
+      sql= q_in
+      changed = re.findall(r'\$\w+|\'\$\w+\'',sql)  
+      for i in changed:
+          if i[-1]=="'" and (by_what:=env.get(i[2:-1], False)):
+              sql = sql.replace(i , "'"+ (f'{by_what}').replace("'","''") +"'")
+          elif by_what:=env.get(i[1:], False):
+              sql = sql.replace(i , f'{by_what}'.replace(',','.'))
+      return self.cur.execute(sql)
 
  def _execute_cte(self, q_in,  env):
 
     q_raw = q_in.strip()
     return self._execute_sql(q_raw,env)
-
 
  def _ensure_data_frame(self, obj, name):
 
@@ -126,7 +131,7 @@ class baresql(object):
       firstrow = obj[0]
 
       if isinstance(firstrow, (tuple, list)):
-        colnames = ["c%d" % i for i in range(len(firstrow))]
+        colnames = [f"c{i}" for i in range(len(firstrow))]
         df = pd.DataFrame(obj, columns=colnames)
       else:
         df = pd.DataFrame(list(obj), columns = ["c0"])
@@ -137,7 +142,7 @@ class baresql(object):
       df = pd.DataFrame([obj,], columns = ["c0"])
 
     if not isinstance(df, pd.DataFrame) :
-      raise Exception("%s is no Dataframe/Tuple/List/Dictionary" % name)
+      raise Exception(f"{name} is not a Dataframe")
 
     for col in df:
       if df[col].dtype == np.int64:
@@ -160,31 +165,23 @@ class baresql(object):
     self.tmp_tables = list(set(tables))
     return self.tmp_tables , q_out[:-6]
 
-
  def _write_table(self, tablename, df, conn):
     for col in df.columns:
       if re.search("[()]", col):
         raise Exception("SQLite column naming")
- 
-    if LooseVersion(pd.__version__) < LooseVersion("0.18.9"):
-      to_sql(df, name = tablename, con = self.conn,  flavor = self.engine)
-    else:
-      to_sql(df, name = tablename, con = self.conn)
+    to_sql(df, name = tablename, con = self.conn)
 
  def createpydef(self, sql):
-    instruction = sql.strip('; \t\n\r')
-    exec(instruction[2:], globals(), locals())
-    firstline = (instruction[5:].splitlines()[0]).lstrip()
-    firstline = firstline.replace(" ", "") + "("
-    instr_name = firstline.split("(", 1)[0].strip()
-    instr_parms = firstline.count(',')+1
-    instr_add = (("self.conn.create_function('%s', %s, %s)" % (
-            instr_name, instr_parms, instr_name)))
-    exec(instr_add, globals(), locals())
-    the_help = dict(globals(), **locals())[instr_name].__doc__
-    self.conn_def[instr_name] = {
-      'parameters': instr_parms, 'inst': instr_add,
-      'help': the_help, 'pydef': instruction}
+    instruction = sql.strip("; \t\n\r")
+    exec(instruction[2:], globals(), self.pydef_locals)
+    instr_header = re.findall(r"\w+", instruction[: (instruction + ")").find(")")])
+    instr_name = instr_header[1]
+    instr_parms = len(instr_header) - 2
+    instr_pointer=eval(instr_name, globals(), self.pydef_locals)
+    self.conn.create_function(instr_name, instr_parms, instr_pointer)
+    instr_add = (f"self.conn.create_function('{instr_name}', {instr_parms}, {instr_name})")
+    the_help = self.pydef_locals[instr_name].__doc__
+    self.conn_def[instr_name] = {"parameters": instr_parms, "inst": instr_add, "help": the_help, "pydef": instruction,}
     return instr_name
   
  def cursor(self, q, env):
@@ -195,8 +192,6 @@ class baresql(object):
     names_env = {}
     if isinstance(env, dict):
       names_env = env
-    elif isinstance(env, (list,tuple)) and len(env)>0 and isinstance(env[-1], dict):
-      names_env = env[-1]
     tables, sql = self._extract_table_names(sql, names_env)
     for table_ref in tables:
       table_sql = table_ref+"" 
@@ -245,4 +240,5 @@ class baresql(object):
       result = pd.DataFrame(rows, columns=columns)
     self.remove_tmp_tables()
     return result
+
     
