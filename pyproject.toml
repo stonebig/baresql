@@ -1,0 +1,33 @@
+[build-system]  # flit_core seems the step after 'setuptools','wheel','build','twine' (see https://github.com/pypa/build/issues/394)
+requires = ["flit_core"]
+build-backend = "flit_core.buildapi"
+
+[project]
+name = "baresql"
+dynamic = ["version",]
+description = "playing SQL directly on Python datas"
+authors = [
+    { name = "stonebig", email = "write_pull_requests_to_stonebig@github.com" }
+]
+readme = "README.rst"
+license = { text = "MIT" }
+keywords = ["sqlite", "sql"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Environment :: Console",
+    "Intended Audience :: Education",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering :: Information Analysis",
+]
+
+dependencies = [
+    "pandas",
+]
+
+[project.urls]
+homepage = "https://github.com/stonebig/baresql"
+Source = "https://github.com/stonebig/baresql"
+
