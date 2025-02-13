@@ -94,8 +94,6 @@ class baresql(object):
             "sqlite:///.baresql.db" = sqlite on disk database ".baresql.db"
         keep_log = keep log of SQL instructions generated
         """
-        self.__version__ = '0.9.0'
-        self._title = "2024-10-21 : 'fixes from baresql'"
         #identify sql engine and database
         self.pydef_locals = {}
         self.connection = connection

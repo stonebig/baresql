@@ -26,5 +26,5 @@ WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 OTHER DEALINGS IN THE SOFTWARE.
 """
-__version__ = '0.9.1'
+__version__ = '1.0.0'
 __project_url__ = 'https://github.com/stonebig/baresql'
